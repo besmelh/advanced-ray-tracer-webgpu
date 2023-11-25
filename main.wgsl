@@ -25,6 +25,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   setup_light();
   setup_scene_objects();
 
+
   // perform startified supersampling for antialiasing
   var n = 4;
   var pixel_color = vec3<f32>(0,0,0);
@@ -130,37 +131,51 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     let light_a = vec3<f32>(light.position.x + 0.5, 0, 0); //edge 1 vector
     let light_b = vec3<f32>(0, light.position.y + 0.5, 0); //edge 2 vector
 
-    // choose random point on paralleogram light area
-    let random_a = rnd();
-    let random_b = rnd();
-    let light_r = light_c + f32(random_a) * light_a + f32(random_b) * light_b;
+    // initialize diffuse and specular
+    var diffuse = vec3<f32>(0,0,0);
 
+    // number of samples for soft shadows
+    let num_shadow_samples: u32 = 16; // 4 * 4
+    var shadow_accumulator: f32 = 0.0;
 
-    // var lightDir  = light.position - rec.p;
-    var lightDir  = light_r - rec.p;
-    let lightDistance = length(lightDir);
-    lightDir = normalize(lightDir);
-    let diffuse = compute_diffuse(lightDir,rec.normal);
+    for (var i: u32 = 0; i < num_shadow_samples; i++) {
+      // choose random point on paralleogram light area
+      let random_a = rnd();
+      let random_b = rnd();
+      let light_r = light_c + f32(random_a) * light_a + f32(random_b) * light_b;
 
-    // Tracing shadow ray only if the light is visible from the surface
-    if(dot(rec.normal, lightDir) > 0.0)
-    {
-      var shadow_ray: Ray;
-      shadow_ray.orig =  rec.p;
-      shadow_ray.dir = lightDir;
-      shadow_ray.t_min = 0.001;
-      shadow_ray.t_max = lightDistance - shadow_ray.t_min;
-      var shadow_rec = trace_ray(shadow_ray);
-      if (shadow_rec.hit_found) { 
-          attenuation = 0.3;
-      }
-      else
-      {
-         // Compute specular only if not in shadow
-         specular = compute_specular(ray.dir, lightDir, rec.normal);
+      var lightDir  = light_r - rec.p;
+      let lightDistance = length(lightDir);
+      lightDir = normalize(lightDir);
+      diffuse = diffuse + compute_diffuse(lightDir, rec.normal);
+
+      // Tracing shadow ray only if the light is visible from the surface
+      if(dot(rec.normal, lightDir) > 0.0) {
+        var shadow_ray: Ray;
+        shadow_ray.orig =  rec.p;
+        shadow_ray.dir = lightDir;
+        shadow_ray.t_min = 0.001;
+        shadow_ray.t_max = lightDistance - shadow_ray.t_min;
+        var shadow_rec = trace_ray(shadow_ray);
+        if (shadow_rec.hit_found) { 
+          // Accumulate shadow factor if occlusion is found
+          shadow_accumulator += 1.0;
+        } else {
+          specular = specular + compute_specular(ray.dir, lightDir, rec.normal);
+        }
       }
     }
-   return ambient* Ka + (diffuse*Kd + specular*Ks)* attenuation; 
+
+    // average and set values
+    diffuse = diffuse / f32(num_shadow_samples);
+    specular = specular / f32(num_shadow_samples);
+
+    // Use the soft shadow factor to attenuate the light contribution
+    let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
+    attenuation = mix(1.0, 0.3, soft_shadow_factor);
+
+   return ambient* Ka + (diffuse*Kd + specular*Ks)* attenuation;
+  // return vec3<f32>(1,0,0); 
  }
  
 // Trace ray and return the resulting contribution of this ray
