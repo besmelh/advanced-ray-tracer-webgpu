@@ -3,7 +3,7 @@
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   // global variable
   image_resolution = Resolution.xy;
-  pixel_position = vec2<f32>(position.x,image_resolution.y-position.y);
+  pixel_position = vec2<f32>(position.x, image_resolution.y - position.y);
 
   // for the random number generator
   let v= u32(10); //any value
@@ -25,12 +25,20 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   setup_light();
   setup_scene_objects();
 
-  let ui = _left + (_right - _left) * ((pixel_position.x + 0.5) / image_resolution.x);
-  let vi = _bottom + (_top - _bottom) * ((pixel_position.y + 0.5) / image_resolution.y);
-
-  // Generate a primary ray
-  var ray:Ray = get_ray(camera,ui,vi);
-  var pixel_color = get_pixel_color(ray);
+  // perform startified supersampling for antialiasing
+  var n = 4;
+  var pixel_color = vec3<f32>(0,0,0);
+  for (var p = 0; p <= n-1; p++) {
+    for (var q = 0; q <= n-1; q++) {
+      var r = rnd();
+      var ui = _left + (_right - _left) * ((pixel_position.x + (f32(p) + r)/f32(n)) / image_resolution.x);
+      var vi = _bottom + (_top - _bottom) * ((pixel_position.y + (f32(q) + r)/f32(n)) / image_resolution.y);
+      var ray:Ray = get_ray(camera,ui,vi);
+      pixel_color = pixel_color + get_pixel_color(ray);
+      // pixel_color = pixel_color + vec3<f32>(1,0,0);
+    }
+  }
+  pixel_color = pixel_color / f32(n*n);   
   
   return vec4<f32>(pixel_color,1.0);
 }
@@ -455,12 +463,7 @@ fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
 // returns gradient background
 fn get_background_color()->vec3<f32>{
     let t = pixel_position.y / image_resolution.y;
-    // return t*vec3<f32>(0.2, 0.2, 0.2) + (1.0-t)*vec3<f32>(1.0, 1.0, 1.0);
-
-    let r1 = rnd();
-    let g1 = rnd();
-    let b1 = rnd();
-    return vec3<f32>(r1,g1,b1);
+    return t*vec3<f32>(0.2, 0.2, 0.2) + (1.0-t)*vec3<f32>(1.0, 1.0, 1.0);
 }
 //-----------------------
 // buffer functions
