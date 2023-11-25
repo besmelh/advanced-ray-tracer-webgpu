@@ -122,12 +122,26 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     let ambient = rec.hit_material.ambient;
 
     // diffuse
-    var lightDir  = light.position - rec.p;
+    var specular    = vec3<f32>(0,0,0);
+    var attenuation = 1.0;
+
+    // create a paralleogram representation of the light
+    let light_c = vec3<f32>(light.position.x - 0.5, light.position.y - 0.5, light.position.z); //corner point
+    let light_a = vec3<f32>(light.position.x + 0.5, 0, 0); //edge 1 vector
+    let light_b = vec3<f32>(0, light.position.y + 0.5, 0); //edge 2 vector
+
+    // choose random point on paralleogram light area
+    let random_a = rnd();
+    let random_b = rnd();
+    let light_r = light_c + f32(random_a) * light_a + f32(random_b) * light_b;
+
+
+    // var lightDir  = light.position - rec.p;
+    var lightDir  = light_r - rec.p;
     let lightDistance = length(lightDir);
     lightDir = normalize(lightDir);
     let diffuse = compute_diffuse(lightDir,rec.normal);
-    var specular    = vec3<f32>(0,0,0);
-    var attenuation = 1.0;
+
     // Tracing shadow ray only if the light is visible from the surface
     if(dot(rec.normal, lightDir) > 0.0)
     {
