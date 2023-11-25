@@ -5,6 +5,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   image_resolution = Resolution.xy;
   pixel_position = vec2<f32>(position.x,image_resolution.y-position.y);
 
+  // for the random number generator
+  let v= u32(10); //any value
+  seed = tea(u32(position.x + position.y * Resolution.x), v);
+
 // update the camera theta to rotate when '0' key is pressed
   if(pixel_position.x <= 1.0 && pixel_position.y <= 1.0)
   {   
@@ -451,7 +455,12 @@ fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
 // returns gradient background
 fn get_background_color()->vec3<f32>{
     let t = pixel_position.y / image_resolution.y;
-    return t*vec3<f32>(0.2, 0.2, 0.2) + (1.0-t)*vec3<f32>(1.0, 1.0, 1.0);
+    // return t*vec3<f32>(0.2, 0.2, 0.2) + (1.0-t)*vec3<f32>(1.0, 1.0, 1.0);
+
+    let r1 = rnd();
+    let g1 = rnd();
+    let b1 = rnd();
+    return vec3<f32>(r1,g1,b1);
 }
 //-----------------------
 // buffer functions
@@ -545,6 +554,34 @@ struct Light
    color:vec3<f32>
 }
 
+// ----------------------------------------------------------------------------
+// Random number generator
+// ----------------------------------------------------------------------------
+fn tea(val0:u32, val1:u32)->u32{
+// "GPU Random Numbers via the Tiny Encryption Algorithm"
+  var v0 = val0;
+  var v1 = val1;
+  var s0 = u32(0);
+  for (var n: i32 = 0; n < 16; n++) {
+    s0 += 0x9e3779b9;
+    v0 += ((v1 << 4) + 0xa341316c) ^ (v1 + s0) ^ ((v1 >> 5) + 0xc8013ea4);
+    v1 += ((v0 << 4) + 0xad90777d) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7e95761e);
+  }
+
+  return v0;
+}
+fn rnd()->f32{
+  // Generate a random float in [0, 1) 
+  return (f32(lcg()) / f32(0x01000000));
+}
+fn lcg()->u32{
+// Generate a random unsigned int in [0, 2^24) given the previous RNG state
+// using the Numerical Recipes linear congruential generator
+  let LCG_A = 1664525u;
+  let LCG_C = 1013904223u;
+  seed       = (LCG_A * seed + LCG_C);
+  return seed & 0x00FFFFFF;
+}
 
 // ----------------------------------------------------------------------------
 // global variables
@@ -557,10 +594,6 @@ var<private> Ks:f32 = 0.2;
 
 var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
-
-var<private> seed: f32 = 0;
-
-
 
 // world objects
 var<private> world_spheres_count: i32 = 1;
@@ -576,3 +609,6 @@ var<private> world_cones: array<Cone, 1>;
 // world objects
 var<private> world_cubes_count: i32 = 1;
 var<private> world_cubes: array<Cube, 1>;
+
+// random number generator
+var<private> seed: u32 = 0;
