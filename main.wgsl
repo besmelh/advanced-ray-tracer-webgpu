@@ -100,20 +100,25 @@ fn setup_scene_objects(){
 // Scene definition
 // ----------------------------------------------------------------------------
   // -- Sphere[0] -- 
-  world_spheres[0].center=vec3<f32>(-0.125, 0.25, 0.5);
+  world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
 
+  // -- Sphere[1] -- 
+  world_spheres[1].center=vec3<f32>(-0.5, 0.25, 1);
+  world_spheres[1].radius= 0.25;
+  world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
+
   // -- cone[0] -- 
-  world_cones[0].center=vec3<f32>( 0.18,  0.0, -0.12);
+  world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
   world_cones[0].radius= 0.25;
   world_cones[0].height= 0.75;
   world_cones[0].material.ambient=vec3<f32>(0.0,0.4,0.7);
 
   // -- cube[0] -- 
-  //world_cubes[0].min=vec3<f32>( -1.0,  0.0, -1.0);
-  //world_cubes[0].max=vec3<f32>(  1.0,  0.9, -1.05);
-  //world_cubes[0].material.ambient=vec3<f32>(0.7,0.4,0.7);
+  // world_cubes[0].min=vec3<f32>( -1.0,  0.0, -1.0);
+  // world_cubes[0].max=vec3<f32>(  1.0,  0.9, -1.05);
+  // world_cubes[0].material.ambient=vec3<f32>(0.7,0.4,0.7);
 
 // triangles are used for the ground
   // -- Triangle[0] -- 
@@ -591,13 +596,13 @@ fn update_focal_length(){
   if(Key == 57) // key==9   
   {
     var focal_length = floatBuffer[1];
-    focal_length = focal_length + 0.1;
+    focal_length = focal_length + 0.25;
     floatBuffer[1] = focal_length;
   }
   if(Key == 56) // key==8   
   {
     var focal_length = floatBuffer[1];
-    focal_length = focal_length - 0.1;
+    focal_length = focal_length - 0.25;
     if(focal_length<0) 
     {
        focal_length = 0.0;
@@ -738,8 +743,8 @@ var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
 
 // world objects
-var<private> world_spheres_count: i32 = 1;
-var<private> world_spheres: array<Sphere, 1>;
+var<private> world_spheres_count: i32 = 2;
+var<private> world_spheres: array<Sphere, 2>;
 
 var<private> world_triangles_count: i32 = 2;
 var<private> world_triangles: array<Triangle, 2>;
