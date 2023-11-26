@@ -27,7 +27,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 4;
+  var n = 1;
   var pixel_color = vec3<f32>(0,0,0);
   for (var p = 0; p <= n-1; p++) {
     for (var q = 0; q <= n-1; q++) {
@@ -37,10 +37,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       var ray:Ray = get_ray(camera,ui,vi);
 
       // find the convergence to calculate the depth of field
-      vec3<f32> converegence_point = ray.origin + camera.focal_length * ray.dir;
+      var converegence_point = ray.orig + camera.focal_length * ray.dir;
       var shifted_ray:Ray = get_shifted_ray(converegence_point, ray);
 
-      pixel_color = pixel_color + get_pixel_color(ray);
+      pixel_color = pixel_color + get_pixel_color(shifted_ray);
+      // pixel_color = pixel_color + get_pixel_color(ray);
       // pixel_color = pixel_color + vec3<f32>(1,0,0);
     }
   }
@@ -56,6 +57,7 @@ fn setup_light()
 }
 
 fn setup_camera(){
+
   // Rotate the camera around
   var look_from = vec3<f32>(0.0, 1.0, 1.0);
   var theta = get_camera_theta();
@@ -65,11 +67,11 @@ fn setup_camera(){
       
   camera.origin = rot * look_from;
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
-  camera.dir = normalize(camera.lookat - camera.origin);
-  camera.aperture = 0.5;
-  camera.focal_length = -2;
+  camera.dir = normalize(camera.lookat-camera.origin);
+  camera.aperture = 0.1;
+  camera.focal_length = 0.5;
 
-  camera.w = normalize(camera.dir * -1);
+  camera.w = normalize(camera.dir*-1);
   camera.u = normalize(cross(vec3<f32>(0,1,0), camera.w));
   camera.v = cross(camera.w,camera.u);
 
@@ -118,7 +120,7 @@ fn setup_scene_objects(){
 fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
   var ray: Ray;
   ray.orig = camera.origin;
-  ray.dir = normalize((camera.w*-1) + (camera.u*ui) + (camera.v*vj));
+  ray.dir = normalize((camera.w*-1)+(camera.u*ui)+ (camera.v*vj));
   ray.t_min = 0;
   ray.t_max = 10000.0;
   return ray;
@@ -129,32 +131,10 @@ fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
 // note: randomness is currently not stratified
 fn get_shifted_ray(converegence_point:vec3<f32>, orig_ray: Ray)->Ray{  
   var shifted_ray = orig_ray; //note: double check it's a deep copy not pointer refernce
-  var r_shift = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  // var r_shift = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  var r_shift = vec3<f32>(0.0, 0.08, 0.0);
   shifted_ray.dir = converegence_point - (orig_ray.orig + r_shift);
   return shifted_ray;
-}
-
-// getting a random ray from our camera plane to implement depth of field
-fn get_ray_dof(camera:Camera, ui:f32, vj:f32)->Ray{  
-  var secondary_ray: Ray;
-
-  // shift the camera origin to be somewhere random within the camera plane
-  var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
-  vec3<f32> shifted_cam_origin =  camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
-  vec3<f32> shifted_cam_dir =  normalize(camera.lookat - shifted_cam_origin);
-
-  secondary_ray.orig = shifted_cam_origin;
-  secondary_ray.dir = normalize((normalize(shifted_cam_dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
-  secondary_ray.t_min = 0;
-  secondary_ray.t_max = 10000.0;
-
-  // calculate convergence point C = O + fD
-  vec3<f32> C = secondary_ray.orig + camera.focal_length *  secondary_ray.dir;
-
-  // calculate shifted point = C - (O + r)
-  vec3<f32> shifted_point = C - (secondary_ray.orig + offset);
-
-  return secondary_ray;
 }
 
 fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
@@ -609,7 +589,6 @@ struct Cone
   height:f32,
   material:Material
 } 
-
 struct Camera
 {
   origin:vec3<f32>,
@@ -618,9 +597,9 @@ struct Camera
   v:vec3<f32>, //camera's up direction
   lookat:vec3<f32>,
   dir:vec3<f32>, //origin to lookout
-  // aperture represents the side-length of the camera plane, which affects the amount of blurriness
-  aperture:f32,
   focal_length:f32,
+  // aperture represents the side-length of the camera plane, which affects the amount of blurriness
+  aperture:f32
 }
 
 struct Light
@@ -670,7 +649,7 @@ var<private> Ks:f32 = 0.2;
 var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
 
-// world objectss
+// world objects
 var<private> world_spheres_count: i32 = 1;
 var<private> world_spheres: array<Sphere, 1>;
 
