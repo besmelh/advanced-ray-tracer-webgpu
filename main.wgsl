@@ -35,13 +35,23 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 2;
+  var n = 4;
   var pixel_color = vec3<f32>(0,0,0);
+  var stratum_size = 1.0 / f32(n); // Size of each stratum
+
   for (var p = 0; p <= n-1; p++) {
     for (var q = 0; q <= n-1; q++) {
-      var r = rnd();
-      var ui = _left + (_right - _left) * ((pixel_position.x + (f32(p) + r)/f32(n)) / image_resolution.x);
-      var vi = _bottom + (_top - _bottom) * ((pixel_position.y + (f32(q) + r)/f32(n)) / image_resolution.y);
+    // Compute the starting corner of the stratum
+      var stratum_origin = vec2<f32>(f32(p), f32(q)) * stratum_size;
+      
+      // Generate a random point within the stratum
+      var random_offset = vec2<f32>(rnd(), rnd()) * stratum_size;
+      var sample_point = stratum_origin + random_offset;
+      
+      // Compute sample's coordinates on the image plane
+      var ui = _left + (_right - _left) * ((pixel_position.x + sample_point.x) / image_resolution.x);
+      var vi = _bottom + (_top - _bottom) * ((pixel_position.y + sample_point.y) / image_resolution.y);
+        
       var ray:Ray = get_ray(camera,ui,vi);
 
       // find the convergence to calculate the depth of field
