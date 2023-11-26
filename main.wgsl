@@ -68,8 +68,8 @@ fn setup_camera(){
   camera.origin = rot * look_from;
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
   camera.dir = normalize(camera.lookat-camera.origin);
-  camera.aperture = 0.01;
-  camera.focal_length = 0.5;
+  camera.aperture = 0.04;
+  camera.focal_length = 2.5;
 
   camera.w = normalize(camera.dir*-1);
   camera.u = normalize(cross(vec3<f32>(0,1,0), camera.w));
@@ -82,7 +82,7 @@ fn setup_scene_objects(){
 // Scene definition
 // ----------------------------------------------------------------------------
   // -- Sphere[0] -- 
-  world_spheres[0].center=vec3<f32>(-0.125, 0.25, 0.35);
+  world_spheres[0].center=vec3<f32>(-0.125, 0.25, 0.5);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
 
