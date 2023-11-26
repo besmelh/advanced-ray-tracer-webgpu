@@ -1,3 +1,8 @@
+// control keys:
+// 0 - rotate camera around scene
+// 9 - increase focal length
+// 8 - decrease focal length
+
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
@@ -27,7 +32,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 3;
+  var n = 2;
   var pixel_color = vec3<f32>(0,0,0);
   for (var p = 0; p <= n-1; p++) {
     for (var q = 0; q <= n-1; q++) {
@@ -69,7 +74,7 @@ fn setup_camera(){
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
   camera.dir = normalize(camera.lookat-camera.origin);
   camera.aperture = 0.04;
-  camera.focal_length = 2.5;
+  camera.focal_length = get_focal_length();
 
   camera.w = normalize(camera.dir*-1);
   camera.u = normalize(cross(vec3<f32>(0,1,0), camera.w));
@@ -517,12 +522,21 @@ fn get_background_color()->vec3<f32>{
 // buffer functions
 //-----------------------
 fn update_buffers(){
- update_camera_theta();
+  update_camera_theta();
+  update_focal_length();
 }
 
 fn get_camera_theta()->f32{
   return floatBuffer[0];
 }
+fn get_focal_length()->f32{
+  // initial value
+  if (floatBuffer[1] <= 0){
+    floatBuffer[1] = 1;
+  }
+  return floatBuffer[1];
+}
+
 fn update_camera_theta(){
   if(Key == 48) // key==0   
   {
@@ -533,6 +547,20 @@ fn update_camera_theta(){
        theta = 0.0;
     }  
     floatBuffer[0] = theta;
+  }
+}
+fn update_focal_length(){
+  if(Key == 57) // key==9   
+  {
+    var focal_length = floatBuffer[1];
+    focal_length = focal_length + 0.1;
+    floatBuffer[1] = focal_length;
+  }
+  if(Key == 56) // key==8   
+  {
+    var focal_length = floatBuffer[1];
+    focal_length = focal_length - 0.1;
+    floatBuffer[1] = focal_length;
   }
 }
 //-----------------------
