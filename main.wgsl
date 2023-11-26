@@ -2,6 +2,9 @@
 // 0 - rotate camera around scene
 // 9 - increase focal length
 // 8 - decrease focal length
+// 7 - increase aperture
+// 6 - decrease aperture
+
 
 
 @fragment
@@ -73,7 +76,7 @@ fn setup_camera(){
   camera.origin = rot * look_from;
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
   camera.dir = normalize(camera.lookat-camera.origin);
-  camera.aperture = 0.04;
+  camera.aperture = get_aperture();
   camera.focal_length = get_focal_length();
 
   camera.w = normalize(camera.dir*-1);
@@ -524,6 +527,7 @@ fn get_background_color()->vec3<f32>{
 fn update_buffers(){
   update_camera_theta();
   update_focal_length();
+  update_aperture();
 }
 
 fn get_camera_theta()->f32{
@@ -535,6 +539,13 @@ fn get_focal_length()->f32{
     floatBuffer[1] = 1;
   }
   return floatBuffer[1];
+}
+fn get_aperture()->f32{
+  // initial value
+  if (floatBuffer[2] <= 0){
+    floatBuffer[2] = 0.01;
+  }
+  return floatBuffer[2];
 }
 
 fn update_camera_theta(){
@@ -560,7 +571,29 @@ fn update_focal_length(){
   {
     var focal_length = floatBuffer[1];
     focal_length = focal_length - 0.1;
+    if(focal_length<0) 
+    {
+       focal_length = 0.0;
+    } 
     floatBuffer[1] = focal_length;
+  }
+}
+fn update_aperture(){
+  if(Key == 55) // key==7   
+  {
+    var aperture = floatBuffer[2];
+    aperture = aperture + 0.001;
+    floatBuffer[2] = aperture;
+  }
+  if(Key == 54) // key==6   
+  {
+    var aperture = floatBuffer[2];
+    aperture = aperture - 0.001;
+    if(aperture<0) 
+    {
+       aperture = 0.0;
+    } 
+    floatBuffer[2] = aperture;
   }
 }
 //-----------------------
