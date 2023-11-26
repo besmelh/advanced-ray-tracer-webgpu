@@ -51,7 +51,6 @@ fn setup_light()
 }
 
 fn setup_camera(){
-
   // Rotate the camera around
   var look_from = vec3<f32>(0.0, 1.0, 1.0);
   var theta = get_camera_theta();
@@ -61,9 +60,11 @@ fn setup_camera(){
       
   camera.origin = rot * look_from;
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
-  camera.dir = normalize(camera.lookat-camera.origin);
+  camera.dir = normalize(camera.lookat - camera.origin);
+  camera.aperture = 0.5;
+  camera.focal_length = -2;
 
-  camera.w = normalize(camera.dir*-1);
+  camera.w = normalize(camera.dir * -1);
   camera.u = normalize(cross(vec3<f32>(0,1,0), camera.w));
   camera.v = cross(camera.w,camera.u);
 
@@ -112,9 +113,60 @@ fn setup_scene_objects(){
 fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
   var ray: Ray;
   ray.orig = camera.origin;
-  ray.dir = normalize((camera.w*-1)+(camera.u*ui)+ (camera.v*vj));
+  ray.dir = normalize((camera.w*-1) + (camera.u*ui) + (camera.v*vj));
   ray.t_min = 0;
   ray.t_max = 10000.0;
+  return ray;
+}
+
+// getting a random ray from our camera plane to implement depth of field
+fn get_ray_dof(camera:Camera, ui:f32, vj:f32)->Ray{
+  // var primary_ray: Ray;
+  // primary_ray.orig = camera.origin;
+  // primary_ray.dir = normalize((camera.w * -1) + (camera.u * ui) + (camera.v * vj));
+  // primary_ray.t_min = 0;
+  // primary_ray.t_max = 10000.0;
+
+  
+  var secondary_ray: Ray;
+
+  // shift the camera origin to be somewhere random within the camera plane
+  var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  vec3<f32> shifted_cam_origin =  camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
+  vec3<f32> shifted_cam_dir =  normalize(camera.lookat - shifted_cam_origin);
+
+  secondary_ray.orig = shifted_cam_origin;
+  primary_ray.dir = normalize((normalize(shifted_cam_dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
+  primary_ray.t_min = 0;
+  primary_ray.t_max = 10000.0;
+
+
+
+
+
+  // var camera_shifted: Camera; //note: this may a shallow copy refernce
+  // // shift the camera origin to be somewhere random within the camera plane
+  // var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  // camera_shifted.origin = camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
+  
+  // // other attributes
+  // camera_shifted.aperture = camera.aperture;
+  // camera_shifted.u = camera.u;
+  // camera_shifted.v = camera.v;
+  // camera_shifted.w = 
+
+  // var secondary_ray: Ray;
+  // secondary_ray.orig = camera_shifted.origin;
+  // vec3<f32> shifted_cam_origin =  camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
+  // vec3<f32> shifted_cam_dir =  normalize(camera.lookat - shifted_cam_origin);
+
+  // // shift the camera origin to be somewhere random within the camera plane
+  // var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  // set origin to be in center of camera plane
+  // secondary_ray.orig = camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
+  // camera.w = normalize(camera.dir * -1);
+  // primary_ray.dir = normalize((normalize(camera.dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
+
   return ray;
 }
 
@@ -570,14 +622,18 @@ struct Cone
   height:f32,
   material:Material
 } 
+
 struct Camera
 {
   origin:vec3<f32>,
-  w:vec3<f32>,
-  u:vec3<f32>,
-  v:vec3<f32>,
+  w:vec3<f32>, //lookout to origin
+  u:vec3<f32>, //camera's right direction
+  v:vec3<f32>, //camera's up direction
   lookat:vec3<f32>,
-  dir:vec3<f32>
+  dir:vec3<f32>, //origin to lookout
+  // aperture represents the side-length of the camera plane, which affects the amount of blurriness
+  aperture:f32,
+  focal_length:f32,
 }
 
 struct Light
@@ -627,7 +683,7 @@ var<private> Ks:f32 = 0.2;
 var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
 
-// world objects
+// world objectss
 var<private> world_spheres_count: i32 = 1;
 var<private> world_spheres: array<Sphere, 1>;
 
