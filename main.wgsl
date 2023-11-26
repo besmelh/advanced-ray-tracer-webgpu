@@ -9,6 +9,10 @@
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+  //initial values
+  // floatBuffer[1] = 2; //focal length
+  // floatBuffer[2] = 0.01 //camera aperture
+
   // global variable
   image_resolution = Resolution.xy;
   pixel_position = vec2<f32>(position.x, image_resolution.y - position.y);
@@ -236,7 +240,7 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
     attenuation = mix(1.0, 0.3, soft_shadow_factor);
 
-   return ambient* Ka + (diffuse*Kd + specular*Ks + glossy_reflection)* attenuation;
+   return ambient* Ka + (diffuse*Kd + specular*Ks + glossy_reflection*Kg)* attenuation;
   // return vec3<f32>(1,0,0); 
  }
  
@@ -540,23 +544,26 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
 fn compute_glossy_reflection(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> vec3<f32>
 {
   // reflection of view ray
-  let r = reflect(-lightDir, normal); 
+  let r = reflect(-viewDir, normal); 
 
-  // reflection square side length = a
-  let a = 0.01;
+  // reflection square side length = a, this represents the surface roughness
+  let a = 0.5;
   // selecting random points from square
   let rand_u = -1 * (a/2) + rnd() * a;
   let rand_v = -1 * (a/2) + rnd() * a;
 
   // find the edge vectors of the square plane
   let r_norm = normalize(r);
-  let edge_u = normalize(cross(camera.v, r_norm));
-  let edge_v = cross(camera.v, edge_u);
+  // let edge_u = normalize(cross(camera.v, r_norm));
+  // let edge_v = cross(camera.v, edge_u);
+  let up = vec3<f32>(0.0, 1.0, 0.0); // Use a generic up vector
+  let edge_u = normalize(cross(up, r_norm));
+  let edge_v = cross(r_norm, edge_u);
 
   // note: might need to be normalized
-  let glossy_reflection = r + rand_u * edge_u + rand_v * edge_v;
+  let glossy_dir = normalize(r + rand_u * edge_u + rand_v * edge_v);
 
-  return glossy_reflection;
+  return glossy_dir;
 }
 fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
     var cols=10.0;
@@ -594,13 +601,15 @@ fn get_focal_length()->f32{
   // initial value
   if (floatBuffer[1] <= 0){
     floatBuffer[1] = 1;
+    // floatBuffer[1] = 0;
   }
   return floatBuffer[1];
 }
 fn get_aperture()->f32{
   // initial value
   if (floatBuffer[2] <= 0){
-    floatBuffer[2] = 0.01;
+    // floatBuffer[2] = 0.01;
+    floatBuffer[2] = 0;
   }
   return floatBuffer[2];
 }
@@ -763,6 +772,7 @@ var<private> light: Light;
 var<private> Ka:f32 = 0.4;
 var<private> Kd:f32 = 0.4; 
 var<private> Ks:f32 = 0.2; 
+var<private> Kg:f32 = 0.5; //glossy reflection
 
 var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
