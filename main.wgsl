@@ -105,7 +105,7 @@ fn setup_scene_objects(){
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
 
   // -- Sphere[1] -- 
-  world_spheres[1].center=vec3<f32>(-0.5, 0.25, 1);
+  world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
   world_spheres[1].radius= 0.25;
   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
 
@@ -182,7 +182,8 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     let ambient = rec.hit_material.ambient;
 
     // diffuse
-    var specular    = vec3<f32>(0,0,0);
+    var specular = vec3<f32>(0,0,0);
+    var glossy_reflection = vec3<f32>(0,0,0);
     var attenuation = 1.0;
 
     // create a paralleogram representation of the light
@@ -221,6 +222,7 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
           shadow_accumulator += 1.0;
         } else {
           specular = specular + compute_specular(ray.dir, lightDir, rec.normal);
+          glossy_reflection = glossy_reflection + compute_glossy_reflection(ray.dir, lightDir, rec.normal);
         }
       }
     }
@@ -228,12 +230,13 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     // average and set values
     diffuse = diffuse / f32(num_shadow_samples);
     specular = specular / f32(num_shadow_samples);
+    glossy_reflection = glossy_reflection / f32(num_shadow_samples);
 
     // Use the soft shadow factor to attenuate the light contribution
     let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
     attenuation = mix(1.0, 0.3, soft_shadow_factor);
 
-   return ambient* Ka + (diffuse*Kd + specular*Ks)* attenuation;
+   return ambient* Ka + (diffuse*Kd + specular*Ks + glossy_reflection)* attenuation;
   // return vec3<f32>(1,0,0); 
  }
  
@@ -532,6 +535,28 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
     let        R                   = reflect(-lightDir, normal);
     let      specular            =  pow(max(dot(V, R), 0.0), phong_exponent);
     return light.color*specular;
+}
+// r' = r + rand_u * edge_u + rand_v * edge_v
+fn compute_glossy_reflection(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> vec3<f32>
+{
+  // reflection of view ray
+  let r = reflect(-lightDir, normal); 
+
+  // reflection square side length = a
+  let a = 0.01;
+  // selecting random points from square
+  let rand_u = -1 * (a/2) + rnd() * a;
+  let rand_v = -1 * (a/2) + rnd() * a;
+
+  // find the edge vectors of the square plane
+  let r_norm = normalize(r);
+  let edge_u = normalize(cross(camera.v, r_norm));
+  let edge_v = cross(camera.v, edge_u);
+
+  // note: might need to be normalized
+  let glossy_reflection = r + rand_u * edge_u + rand_v * edge_v;
+
+  return glossy_reflection;
 }
 fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
     var cols=10.0;
