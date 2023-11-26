@@ -35,6 +35,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       var ui = _left + (_right - _left) * ((pixel_position.x + (f32(p) + r)/f32(n)) / image_resolution.x);
       var vi = _bottom + (_top - _bottom) * ((pixel_position.y + (f32(q) + r)/f32(n)) / image_resolution.y);
       var ray:Ray = get_ray(camera,ui,vi);
+
+      // find the convergence to calculate the depth of field
+      vec3<f32> converegence_point = ray.origin + camera.focal_length * ray.dir;
+      var shifted_ray:Ray = get_shifted_ray(converegence_point, ray);
+
       pixel_color = pixel_color + get_pixel_color(ray);
       // pixel_color = pixel_color + vec3<f32>(1,0,0);
     }
@@ -120,14 +125,17 @@ fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
 }
 
 // getting a random ray from our camera plane to implement depth of field
-fn get_ray_dof(camera:Camera, ui:f32, vj:f32)->Ray{
-  // var primary_ray: Ray;
-  // primary_ray.orig = camera.origin;
-  // primary_ray.dir = normalize((camera.w * -1) + (camera.u * ui) + (camera.v * vj));
-  // primary_ray.t_min = 0;
-  // primary_ray.t_max = 10000.0;
+// we pass in the convergence point C = O + fD
+// note: randomness is currently not stratified
+fn get_shifted_ray(converegence_point:vec3<f32>, orig_ray: Ray)->Ray{  
+  var shifted_ray = orig_ray; //note: double check it's a deep copy not pointer refernce
+  var r_shift = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
+  shifted_ray.dir = converegence_point - (orig_ray.orig + r_shift);
+  return shifted_ray;
+}
 
-  
+// getting a random ray from our camera plane to implement depth of field
+fn get_ray_dof(camera:Camera, ui:f32, vj:f32)->Ray{  
   var secondary_ray: Ray;
 
   // shift the camera origin to be somewhere random within the camera plane
@@ -136,38 +144,17 @@ fn get_ray_dof(camera:Camera, ui:f32, vj:f32)->Ray{
   vec3<f32> shifted_cam_dir =  normalize(camera.lookat - shifted_cam_origin);
 
   secondary_ray.orig = shifted_cam_origin;
-  primary_ray.dir = normalize((normalize(shifted_cam_dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
-  primary_ray.t_min = 0;
-  primary_ray.t_max = 10000.0;
+  secondary_ray.dir = normalize((normalize(shifted_cam_dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
+  secondary_ray.t_min = 0;
+  secondary_ray.t_max = 10000.0;
 
+  // calculate convergence point C = O + fD
+  vec3<f32> C = secondary_ray.orig + camera.focal_length *  secondary_ray.dir;
 
+  // calculate shifted point = C - (O + r)
+  vec3<f32> shifted_point = C - (secondary_ray.orig + offset);
 
-
-
-  // var camera_shifted: Camera; //note: this may a shallow copy refernce
-  // // shift the camera origin to be somewhere random within the camera plane
-  // var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
-  // camera_shifted.origin = camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
-  
-  // // other attributes
-  // camera_shifted.aperture = camera.aperture;
-  // camera_shifted.u = camera.u;
-  // camera_shifted.v = camera.v;
-  // camera_shifted.w = 
-
-  // var secondary_ray: Ray;
-  // secondary_ray.orig = camera_shifted.origin;
-  // vec3<f32> shifted_cam_origin =  camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
-  // vec3<f32> shifted_cam_dir =  normalize(camera.lookat - shifted_cam_origin);
-
-  // // shift the camera origin to be somewhere random within the camera plane
-  // var offset = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
-  // set origin to be in center of camera plane
-  // secondary_ray.orig = camera.origin - vec3<f32>(camera.aperture/2, camera.aperture/2, 0.0) + offset;
-  // camera.w = normalize(camera.dir * -1);
-  // primary_ray.dir = normalize((normalize(camera.dir * -1) * -1) + (camera.u * ui) + (camera.v * vj));
-
-  return ray;
+  return secondary_ray;
 }
 
 fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
