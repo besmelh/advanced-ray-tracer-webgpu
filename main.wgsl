@@ -27,7 +27,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 1;
+  var n = 3;
   var pixel_color = vec3<f32>(0,0,0);
   for (var p = 0; p <= n-1; p++) {
     for (var q = 0; q <= n-1; q++) {
@@ -68,7 +68,7 @@ fn setup_camera(){
   camera.origin = rot * look_from;
   camera.lookat =  vec3<f32>(0.0, 0.0, 0.0);
   camera.dir = normalize(camera.lookat-camera.origin);
-  camera.aperture = 0.1;
+  camera.aperture = 0.01;
   camera.focal_length = 0.5;
 
   camera.w = normalize(camera.dir*-1);
@@ -131,8 +131,8 @@ fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
 // note: randomness is currently not stratified
 fn get_shifted_ray(converegence_point:vec3<f32>, orig_ray: Ray)->Ray{  
   var shifted_ray = orig_ray; //note: double check it's a deep copy not pointer refernce
-  // var r_shift = vec3<f32>(rnd() / camera.aperture, rnd() / camera.aperture, 0.0);
-  var r_shift = vec3<f32>(0.0, 0.08, 0.0);
+  var r_shift = vec3<f32>(rnd() * camera.aperture, rnd() * camera.aperture, 0.0);
+  // var r_shift = vec3<f32>(0.0, 0.08, 0.0);
   shifted_ray.dir = converegence_point - (orig_ray.orig + r_shift);
   return shifted_ray;
 }
