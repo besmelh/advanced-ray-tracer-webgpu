@@ -139,11 +139,28 @@ fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
 // note: randomness is currently not stratified
 fn get_shifted_ray(converegence_point:vec3<f32>, orig_ray: Ray)->Ray{  
   var shifted_ray = orig_ray; //note: double check it's a deep copy not pointer refernce
-  var r_shift = vec3<f32>(rnd() * camera.aperture, rnd() * camera.aperture, 0.0);
+  var random_disk_point = random_from_circle() * camera.aperture;
+  var r_shift = vec3<f32>(random_disk_point.x, random_disk_point.y, 0.0);
   // var r_shift = vec3<f32>(0.0, 0.08, 0.0);
-  shifted_ray.dir = converegence_point - (orig_ray.orig + r_shift);
+  shifted_ray.dir = normalize(converegence_point - (orig_ray.orig + r_shift));
   return shifted_ray;
 }
+
+// get a random point from a circular camera plane
+fn random_from_circle() -> vec2<f32> {
+    var p: vec2<f32>;
+    loop {
+        // Generate a point `p` with each component being a random number between -1.0 and 1.0
+        p = 2.0 * vec2<f32>(rnd(), rnd()) - vec2<f32>(1.0, 1.0);
+
+        // Check if the point lies within the unit disk by ensuring its distance from the origin (0,0) is less than 1
+        if (dot(p, p) < 1.0) {
+            break; // If the point is inside the unit disk, exit the loop
+        }
+    }
+    return p; // Return the random point within the unit disk
+}
+
 
 fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     // ambient
@@ -582,13 +599,13 @@ fn update_aperture(){
   if(Key == 55) // key==7   
   {
     var aperture = floatBuffer[2];
-    aperture = aperture + 0.001;
+    aperture = aperture + 0.005;
     floatBuffer[2] = aperture;
   }
   if(Key == 54) // key==6   
   {
     var aperture = floatBuffer[2];
-    aperture = aperture - 0.001;
+    aperture = aperture - 0.005;
     if(aperture<0) 
     {
        aperture = 0.0;
