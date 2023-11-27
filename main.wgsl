@@ -107,15 +107,15 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
-  world_spheres[0].material.reflectivity=f32(0.01);
-  world_spheres[0].material.specular=vec3<f32>(0.5,0.5,0.5);
+  world_spheres[0].material.reflectivity=f32(0);
+  world_spheres[0].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[1] -- 
   world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
   world_spheres[1].radius= 0.25;
   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
   world_spheres[1].material.reflectivity=f32(0.5);
-  world_spheres[1].material.specular=vec3<f32>(0.5,0.5,0.5);
+  world_spheres[1].material.specular=vec3<f32>(0.1,0.1,0.1);
 
   // -- cone[0] -- 
   world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
@@ -139,8 +139,8 @@ fn setup_scene_objects(){
   world_triangles[0].uv_b=vec2<f32>(1,0);
   world_triangles[0].uv_c=vec2<f32>(0,1);
   world_triangles[0].material.ambient= vec3<f32>(0.0, 0.0, 0.0);
-  world_triangles[0].material.reflectivity=f32(0.9);
-  world_triangles[0].material.specular=vec3<f32>(0.5,0.5,0.5);
+  world_triangles[0].material.reflectivity=f32(0);
+  world_triangles[0].material.specular=vec3<f32>(0,0,0);
 
   // -- Triangle[1] -- 
   world_triangles[1].a=vec3<f32>(-2.0, 0.0,  2.0);
@@ -150,8 +150,8 @@ fn setup_scene_objects(){
   world_triangles[1].uv_b=vec2<f32>(1,1);
   world_triangles[1].uv_c=vec2<f32>(0,1);
   world_triangles[1].material.ambient=vec3<f32>(0.0, 0.0, 0.0); 
-  world_triangles[1].material.reflectivity=f32(0.9);
-  world_triangles[1].material.specular=vec3<f32>(0.5,0.5,0.5);
+  world_triangles[1].material.reflectivity=f32(0);
+  world_triangles[1].material.specular=vec3<f32>(0,0,0);
 }
 
 fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
