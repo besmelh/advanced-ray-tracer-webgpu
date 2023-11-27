@@ -38,6 +38,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var n = 4;
   var pixel_color = vec3<f32>(0,0,0);
   var stratum_size = 1.0 / f32(n); // Size of each stratum
+  let focal_plane_normal = -camera.dir;
 
   for (var p = 0; p <= n-1; p++) {
     for (var q = 0; q <= n-1; q++) {
@@ -55,14 +56,20 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       var ray:Ray = get_ray(camera,ui,vi);
 
       // find the convergence to calculate the depth of field
-      var converegence_point = ray.orig + camera.focal_length * ray.dir;
-      var shifted_ray:Ray = get_shifted_ray(converegence_point, ray);
+      // let conv_t = dot(camera.focal_length - ray.orig, camera.lookat) / dot(ray.dir, camera.lookat);
+      // var converegence_point = ray.orig + conv_t * ray.dir;
+      // var converegence_point = ray.orig + camera.focal_length * normalize(ray.dir);
+      // var converegence_point = camera.origin + camera.focal_length * normalize(camera.dir);
+      let conv_t = dot(camera.focal_length - ray.orig, focal_plane_normal) / dot(ray.dir, focal_plane_normal);
+      let convergence_point = ray.orig + conv_t * ray.dir;
+      var shifted_ray:Ray = get_shifted_ray(convergence_point, ray);
 
       pixel_color = pixel_color + get_pixel_color(shifted_ray);
       // pixel_color = pixel_color + get_pixel_color(ray);
       // pixel_color = pixel_color + vec3<f32>(1,0,0);
     }
   }
+  
   pixel_color = pixel_color / f32(n*n);   
   
   return vec4<f32>(pixel_color,1.0);
@@ -567,16 +574,16 @@ fn get_camera_theta()->f32{
 }
 fn get_focal_length()->f32{
   // initial value
-  if (floatBuffer[1] <= 0){
-    floatBuffer[1] = 1;
-  }
+  // if (floatBuffer[1] <= 0){
+  //   floatBuffer[1] = 1;
+  // }
   return floatBuffer[1];
 }
 fn get_aperture()->f32{
   // initial value
-  if (floatBuffer[2] <= 0){
-    floatBuffer[2] = 0.01;
-  }
+  // if (floatBuffer[2] <= 0){
+  //   floatBuffer[2] = 0.01;
+  // }
   return floatBuffer[2];
 }
 
@@ -603,10 +610,10 @@ fn update_focal_length(){
   {
     var focal_length = floatBuffer[1];
     focal_length = focal_length - 0.25;
-    if(focal_length<0) 
-    {
-       focal_length = 0.0;
-    } 
+    // if(focal_length<0) 
+    // {
+    //    focal_length = 0.0;
+    // } 
     floatBuffer[1] = focal_length;
   }
 }
