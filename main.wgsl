@@ -192,7 +192,7 @@ fn random_from_circle() -> vec2<f32> {
 
 // // function that only calculates the direct lighting and is called by `get_pixel_color`.
 fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
-  let ambient = rec.hit_material.ambient * light.ambient_color;
+  let ambient = rec.hit_material.ambient * light.color;
   var diffuse = vec3<f32>(0.0, 0.0, 0.0);
   var specular_highlight = vec3<f32>(0.0, 0.0, 0.0);
 
@@ -239,7 +239,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     specular_highlight = specular_highlight / f32(num_shadow_samples);
 
     // compute the soft shadow factor
-    let soft_shadow_factor = (num_shadow_samples - shadow_accumulator) / f32(num_shadow_samples);
+    let soft_shadow_factor = (f32(num_shadow_samples) - shadow_accumulator) / f32(num_shadow_samples);
 
     // apply the soft shadow factor to the diffuse and specular components
     diffuse = diffuse * soft_shadow_factor;
@@ -249,9 +249,9 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     return ambient + diffuse + specular_highlight;
 }
 
+// compute the glossy
 fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
   let reflectivity = rec.hit_material.reflectivity;
-
   if (reflectivity > 0.0) {
     let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.reflectivity);
     // let reflectDir = reflect(normalize(-ray.dir), rec.normal);
@@ -260,147 +260,15 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     reflection_ray.dir = reflection_dir;
     reflection_ray.t_min = 0.001;
     reflection_ray.t_max = 10000.0;
-
-    let reflection_color = get_pixel_color(reflection_ray);
-
+    let reflection_color = get_reflection_color(reflection_ray);
     // Apply Fresnel effect using Schlick's approximation
     let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
     let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
-
     return reflection_color * rec.hit_material.specular * fresnel;
   } else {
     return vec3<f32>(0.0, 0.0, 0.0); // No reflection
   }
 }
-
-// // function that only calculates the direct lighting and is called by `get_pixel_color`.
-// fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
-//   // initialize ambient, diffuse, and specular components
-//   let ambient = rec.hit_material.ambient * light.color;
-//   var diffuse = vec3<f32>(0.0, 0.0, 0.0);
-//   var specular_highlight = vec3<f32>(0.0, 0.0, 0.0);
-
-//   // Compute the light direction
-//   let lightDir = normalize(light.position - rec.p);
-
-
-//   var glossy_reflection = vec3<f32>(0,0,0);
-//   var attenuation = 1.0;
-
-//   // specular
-//   let specular_highlight = compute_specular(ray.dir, lightDir, rec.normal);
-
-//   return color;
-// }
-
-
-fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
-    // ambient
-    let ambient = rec.hit_material.ambient;
-
-    // diffuse
-    var specular_highlight = vec3<f32>(0,0,0);
-    // var specular = vec3<f32>(0,0,0);
-    var glossy_reflection = vec3<f32>(0,0,0);
-    var attenuation = 1.0;
-
-    // Material's reflectivity or specular color
-    let reflectivity = rec.hit_material.specular;
-
-    // create a paralleogram representation of the light
-    let light_c = vec3<f32>(light.position.x - 0.5, light.position.y - 0.5, light.position.z); //corner point
-    let light_a = vec3<f32>(light.position.x + 0.5, 0, 0); //edge 1 vector
-    let light_b = vec3<f32>(0, light.position.y + 0.5, 0); //edge 2 vector
-
-    // initialize diffuse and specular
-    var diffuse = vec3<f32>(0,0,0);
-
-    // number of samples for soft shadows
-    let num_shadow_samples: u32 = 16; // 4 * 4
-    var shadow_accumulator: f32 = 0.0;
-
-        // Compute the reflection ray
-    let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.reflectivity);
-    var reflection_ray: Ray;
-    reflection_ray.orig = rec.p;
-    reflection_ray.dir = reflection_dir;
-    reflection_ray.t_min = 0.001; // Avoid self-intersection
-    reflection_ray.t_max = 10000.0;
-    // Trace the reflection ray to get the reflection color
-    let reflection_color = get_pixel_color(reflection_ray);
-
-    for (var i: u32 = 0; i < num_shadow_samples; i++) {
-      // choose random point on paralleogram light area
-      let random_a = rnd();
-      let random_b = rnd();
-      let light_r = light_c + f32(random_a) * light_a + f32(random_b) * light_b;
-
-      var lightDir  = light_r - rec.p;
-      let lightDistance = length(lightDir);
-      lightDir = normalize(lightDir);
-      diffuse = diffuse + compute_diffuse(lightDir, rec.normal);
-
-      // Tracing shadow ray only if the light is visible from the surface
-      if(dot(rec.normal, lightDir) > 0.0) {
-        var shadow_ray: Ray;
-        shadow_ray.orig =  rec.p;
-        shadow_ray.dir = lightDir;
-        shadow_ray.t_min = 0.001;
-        shadow_ray.t_max = lightDistance - shadow_ray.t_min;
-        var shadow_rec = trace_ray(shadow_ray);
-        if (shadow_rec.hit_found) { 
-          // Accumulate shadow factor if occlusion is found
-          shadow_accumulator += 1.0;
-        } else {
-          // specular = specular + compute_specular(ray.dir, lightDir, rec.normal);
-          // specular_highlight = specular_highlight + compute_specular(ray.dir, lightDir, rec.normal);
-          // // Compute the reflection ray
-          // let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.roughness);
-          // var reflection_ray: Ray;
-          // reflection_ray.orig = rec.p;
-          // reflection_ray.dir = reflection_dir;
-          // reflection_ray.t_min = 0.001; // Avoid self-intersection
-          // reflection_ray.t_max = 10000.0;
-
-          // // Trace the reflection ray to get the reflection color
-          // let reflection_color = get_pixel_color(reflection_ray);
-
-          // // Fresnel effect (using Schlick's approximation as an example)
-          // let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity at normal incidence for non-metallic surface
-          // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(normalize(ray.dir), rec.normal), 5.0);
-
-          // // Weight the reflection color by the material's reflectivity and the Fresnel term
-          // glossy_reflection = reflection_color * reflectivity * fresnel;
-        }
-      }
-    }
-
-    // average and set values
-    diffuse = diffuse / f32(num_shadow_samples);
-    // specular_highlight = specular_highlight / f32(num_shadow_samples);
-    // glossy_reflection = glossy_reflection / f32(num_shadow_samples);
-    specular_highlight = compute_specular(ray.dir, lightDir, rec.normal);
-
-    // Fresnel effect (using Schlick's approximation as an example)
-    let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity at normal incidence for non-metallic surface
-    let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(normalize(ray.dir), rec.normal), 5.0);
-
-    // Weight the reflection color by the material's reflectivity and the Fresnel term
-    let weighted_reflection = reflection_color * reflectivity * fresnel;
-
-    // Tint the specular highlight with the material's specular color
-    let final_specular = specular_highlight * reflectivity;
-
-    // Combine with other components
-    var color =  (ambient * Ka) + (diffuse * Kd) + (final_specular * Ks) + (weighted_reflection * attenuation);
-
-    // Use the soft shadow factor to attenuate the light contribution
-    let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
-    attenuation = mix(1.0, 0.3, soft_shadow_factor);
-
-    return color * attenuation;
-  // return vec3<f32>(1,0,0); 
- }
  
 // Trace ray and return the resulting contribution of this ray
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
@@ -413,10 +281,23 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   else
   {
     final_pixel_color = compute_direct_shading(ray, rec);
-    final_pixel_color += compute_reflection(ray, rec);
+    final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
     // final_pixel_color = compute_shading(ray,rec);
   }
   return final_pixel_color;
+}
+
+// Trace reflection ray and return the resulting color contribution of this ray
+fn get_reflection_color(ray: Ray) -> vec3<f32> {
+  var reflection_color = vec3<f32>(0,0,0);
+  var rec = trace_ray(ray);
+  if(!rec.hit_found) { // if hit background
+    reflection_color = get_background_color();
+  } else {
+    reflection_color = compute_direct_shading(ray, rec);
+    // No recursive reflection
+  }
+  return reflection_color;
 }
 
 fn trace_ray(ray: Ray) -> HitRecord{
