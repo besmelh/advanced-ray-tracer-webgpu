@@ -107,17 +107,23 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
+  world_spheres[0].material.roughness=<f32>(0.01);
+  world_spheres[0].material.specular=vec3<f32>(0.5,0.5,0.5);
 
   // -- Sphere[1] -- 
   world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
   world_spheres[1].radius= 0.25;
   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
+  world_spheres[1].material.roughness=<f32>(0.5);
+  world_spheres[1].material.specular=vec3<f32>(0.5,0.5,0.5);
 
   // -- cone[0] -- 
   world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
   world_cones[0].radius= 0.25;
   world_cones[0].height= 0.75;
   world_cones[0].material.ambient=vec3<f32>(0.0,0.4,0.7);
+  world_cones[0].material.roughness=<f32>(0.9);
+  world_cones[0].material.specular=vec3<f32>(0.5,0.5,0.5);
 
   // -- cube[0] -- 
   // world_cubes[0].min=vec3<f32>( -1.0,  0.0, -1.0);
@@ -133,6 +139,8 @@ fn setup_scene_objects(){
   world_triangles[0].uv_b=vec2<f32>(1,0);
   world_triangles[0].uv_c=vec2<f32>(0,1);
   world_triangles[0].material.ambient= vec3<f32>(0.0, 0.0, 0.0);
+  world_triangles[0].material.roughness=<f32>(0.9);
+  world_triangles[0].material.specular=vec3<f32>(0.5,0.5,0.5);
 
   // -- Triangle[1] -- 
   world_triangles[1].a=vec3<f32>(-2.0, 0.0,  2.0);
@@ -142,6 +150,8 @@ fn setup_scene_objects(){
   world_triangles[1].uv_b=vec2<f32>(1,1);
   world_triangles[1].uv_c=vec2<f32>(0,1);
   world_triangles[1].material.ambient=vec3<f32>(0.0, 0.0, 0.0); 
+  world_triangles[1].material.roughness=<f32>(0.9);
+  world_triangles[1].material.specular=vec3<f32>(0.5,0.5,0.5);
 }
 
 fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
@@ -186,9 +196,13 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     let ambient = rec.hit_material.ambient;
 
     // diffuse
-    var specular = vec3<f32>(0,0,0);
+    var specular_highlight = vec3<f32>(0,0,0);
+    // var specular = vec3<f32>(0,0,0);
     var glossy_reflection = vec3<f32>(0,0,0);
     var attenuation = 1.0;
+
+    // Material's reflectivity or specular color
+    let reflectivity = rec.hit_material.specular;
 
     // create a paralleogram representation of the light
     let light_c = vec3<f32>(light.position.x - 0.5, light.position.y - 0.5, light.position.z); //corner point
@@ -201,6 +215,16 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
     // number of samples for soft shadows
     let num_shadow_samples: u32 = 16; // 4 * 4
     var shadow_accumulator: f32 = 0.0;
+
+        // Compute the reflection ray
+    let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.roughness);
+    var reflection_ray: Ray;
+    reflection_ray.orig = rec.p;
+    reflection_ray.dir = reflection_dir;
+    reflection_ray.t_min = 0.001; // Avoid self-intersection
+    reflection_ray.t_max = 10000.0;
+    // Trace the reflection ray to get the reflection color
+    let reflection_color = get_pixel_color(reflection_ray);
 
     for (var i: u32 = 0; i < num_shadow_samples; i++) {
       // choose random point on paralleogram light area
@@ -225,22 +249,53 @@ fn compute_shading(ray: Ray, rec:HitRecord)-> vec3<f32>{
           // Accumulate shadow factor if occlusion is found
           shadow_accumulator += 1.0;
         } else {
-          specular = specular + compute_specular(ray.dir, lightDir, rec.normal);
-          glossy_reflection = glossy_reflection + compute_glossy_reflection(ray.dir, lightDir, rec.normal);
+          // specular = specular + compute_specular(ray.dir, lightDir, rec.normal);
+          // specular_highlight = specular_highlight + compute_specular(ray.dir, lightDir, rec.normal);
+          // // Compute the reflection ray
+          // let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.roughness);
+          // var reflection_ray: Ray;
+          // reflection_ray.orig = rec.p;
+          // reflection_ray.dir = reflection_dir;
+          // reflection_ray.t_min = 0.001; // Avoid self-intersection
+          // reflection_ray.t_max = 10000.0;
+
+          // // Trace the reflection ray to get the reflection color
+          // let reflection_color = get_pixel_color(reflection_ray);
+
+          // // Fresnel effect (using Schlick's approximation as an example)
+          // let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity at normal incidence for non-metallic surface
+          // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(normalize(ray.dir), rec.normal), 5.0);
+
+          // // Weight the reflection color by the material's reflectivity and the Fresnel term
+          // glossy_reflection = reflection_color * reflectivity * fresnel;
         }
       }
     }
 
     // average and set values
     diffuse = diffuse / f32(num_shadow_samples);
-    specular = specular / f32(num_shadow_samples);
-    glossy_reflection = glossy_reflection / f32(num_shadow_samples);
+    // specular_highlight = specular_highlight / f32(num_shadow_samples);
+    // glossy_reflection = glossy_reflection / f32(num_shadow_samples);
+    specular_highlight = compute_specular(ray.dir, lightDir, rec.normal);
+
+    // Fresnel effect (using Schlick's approximation as an example)
+    let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity at normal incidence for non-metallic surface
+    let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(normalize(ray.dir), rec.normal), 5.0);
+
+    // Weight the reflection color by the material's reflectivity and the Fresnel term
+    let weighted_reflection = reflection_color * reflectivity * fresnel;
+
+    // Tint the specular highlight with the material's specular color
+    let final_specular = specular_highlight * reflectivity;
+
+    // Combine with other components
+    var color =  (ambient * Ka) + (diffuse * Kd) + (final_specular * Ks) + (weighted_reflection * attenuation);
 
     // Use the soft shadow factor to attenuate the light contribution
     let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
     attenuation = mix(1.0, 0.3, soft_shadow_factor);
 
-   return ambient* Ka + (diffuse*Kd + specular*Ks + glossy_reflection*Kg)* attenuation;
+    return color * attenuation;
   // return vec3<f32>(1,0,0); 
  }
  
@@ -538,16 +593,16 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
     let        V                   = normalize(-viewDir);
     let        R                   = reflect(-lightDir, normal);
     let      specular            =  pow(max(dot(V, R), 0.0), phong_exponent);
-    return light.color*specular;
+    return light.color * specular;
 }
 // r' = r + rand_u * edge_u + rand_v * edge_v
-fn compute_glossy_reflection(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> vec3<f32>
+fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, roughness: f32)-> vec3<f32>
 {
   // reflection of view ray
   let r = reflect(-viewDir, normal); 
 
   // reflection square side length = a, this represents the surface roughness
-  let a = 0.5;
+  let a = roughness;
   // selecting random points from square
   let rand_u = -1 * (a/2) + rnd() * a;
   let rand_v = -1 * (a/2) + rnd() * a;
@@ -672,7 +727,9 @@ fn modulo(x: f32,y:f32)->f32{
 // struct
 // ----------------------------------------------------------------------------
 struct Material{
-  ambient:vec3<f32>
+  ambient: vec3<f32>,
+  specular: vec3<f32>,
+  roughness: f32
 }
 struct Ray {
   orig: vec3<f32>,
