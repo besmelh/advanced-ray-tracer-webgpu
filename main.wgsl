@@ -268,10 +268,11 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     reflection_ray.t_max = 10000.0;
     let reflection_color = get_reflection_color(reflection_ray);
     // Apply Fresnel effect using Schlick's approximation
-    let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
-    let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
-    // return reflection_color * rec.hit_material.specular * fresnel;
-    return reflection_color * reflectivity * fresnel;
+    // let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
+    // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
+    // // return reflection_color * rec.hit_material.specular * fresnel;
+    // return reflection_color * reflectivity * fresnel;
+    return reflection_color * reflectivity;
   } else {
     return vec3<f32>(0.0, 0.0, 0.0); // No reflection
   }
@@ -306,8 +307,8 @@ fn get_reflection_color(ray: Ray) -> vec3<f32> {
     reflection_color = compute_direct_shading(ray, rec);
     // No recursive reflection
   }
-  return vec3<f32>(1,0,0);
-  // return reflection_color;
+  // return vec3<f32>(1,0,0);
+  return reflection_color;
 }
 
 fn trace_ray(ray: Ray) -> HitRecord{
