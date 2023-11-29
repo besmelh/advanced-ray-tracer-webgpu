@@ -39,7 +39,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 4;
+  var n = 2;
   var pixel_color = vec3<f32>(0,0,0);
   var stratum_size = 1.0 / f32(n); // Size of each stratum
 
@@ -107,23 +107,23 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
-  world_spheres[0].material.reflectivity=f32(0);
+  world_spheres[0].material.reflectivity=f32(0.2);
   world_spheres[0].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[1] -- 
   world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
   world_spheres[1].radius= 0.25;
   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
-  world_spheres[1].material.reflectivity=f32(0.5);
-  world_spheres[1].material.specular=vec3<f32>(0.1,0.1,0.1);
+  world_spheres[1].material.reflectivity=f32(1);
+  world_spheres[1].material.specular=vec3<f32>(0.5,0.5,0.5);
 
   // -- cone[0] -- 
   world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
   world_cones[0].radius= 0.25;
   world_cones[0].height= 0.75;
   world_cones[0].material.ambient=vec3<f32>(0.0,0.4,0.7);
-  world_cones[0].material.reflectivity=f32(0.9);
-  world_cones[0].material.specular=vec3<f32>(0.5,0.5,0.5);
+  world_cones[0].material.reflectivity=f32(0.5);
+  world_cones[0].material.specular=vec3<f32>(0, 0, 0);
 
   // -- cube[0] -- 
   // world_cubes[0].min=vec3<f32>( -1.0,  0.0, -1.0);
@@ -192,9 +192,11 @@ fn random_from_circle() -> vec2<f32> {
 
 // // function that only calculates the direct lighting and is called by `get_pixel_color`.
 fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
-  let ambient = rec.hit_material.ambient * light.color;
+  let ambient = rec.hit_material.ambient;
   var diffuse = vec3<f32>(0.0, 0.0, 0.0);
   var specular_highlight = vec3<f32>(0.0, 0.0, 0.0);
+  // var specular_highlight = rec.hit_material.specular;
+  var attenuation = 1.0;
 
   // create a paralleogram representation of the light
   // optimize by making these global variables
@@ -216,6 +218,8 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
       let lightDistance = length(lightDir);
       lightDir = normalize(lightDir);
 
+      diffuse += compute_diffuse(lightDir, rec.normal);
+
       // Tracing shadow ray only if the light is visible from the surface
       if(dot(rec.normal, lightDir) > 0.0) {
         var shadow_ray: Ray;
@@ -228,8 +232,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
           // Accumulate shadow factor if occlusion is found
           shadow_accumulator += 1.0;
         } else {
-          diffuse += compute_diffuse(lightDir, rec.normal) * light.color;
-          specular_highlight += compute_specular(ray.dir, lightDir, rec.normal) * light.color;
+          specular_highlight += compute_specular(ray.dir, lightDir, rec.normal);
         }
       }
    }
@@ -239,14 +242,16 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     specular_highlight = specular_highlight / f32(num_shadow_samples);
 
     // compute the soft shadow factor
-    let soft_shadow_factor = (f32(num_shadow_samples) - shadow_accumulator) / f32(num_shadow_samples);
+    let soft_shadow_factor = shadow_accumulator / f32(num_shadow_samples);
+    attenuation = mix(1.0, 0.3, soft_shadow_factor);
 
-    // apply the soft shadow factor to the diffuse and specular components
-    diffuse = diffuse * soft_shadow_factor;
-    specular_highlight = specular_highlight * soft_shadow_factor;
+    // // apply the soft shadow factor to the diffuse and specular components
+    // diffuse = diffuse * soft_shadow_factor;
+    // specular_highlight = specular_highlight * soft_shadow_factor;
 
     // combine the lighting components
-    return ambient + diffuse + specular_highlight;
+    var this_ks  = rec.hit_material.reflectivity;
+    return ambient * Ka + (diffuse * Kd  + specular_highlight * this_ks) * attenuation;
 }
 
 // compute the glossy
@@ -264,7 +269,8 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     // Apply Fresnel effect using Schlick's approximation
     let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
     let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
-    return reflection_color * rec.hit_material.specular * fresnel;
+    // return reflection_color * rec.hit_material.specular * fresnel;
+    return reflection_color * reflectivity * fresnel;
   } else {
     return vec3<f32>(0.0, 0.0, 0.0); // No reflection
   }
@@ -280,6 +286,8 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   }
   else
   {
+    // final_pixel_color = compute_direct_shading(ray, rec);
+    // final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
     // final_pixel_color = compute_shading(ray,rec);
