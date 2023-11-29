@@ -117,13 +117,20 @@ fn setup_scene_objects(){
   world_spheres[1].material.reflectivity=f32(0.2);
   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
+    // -- Sphere[2]] -- 
+  world_spheres[2].center=vec3<f32>(0.18, 0.4, -1);
+  world_spheres[2].radius= 0.4;
+  world_spheres[2].material.ambient=vec3<f32>(0,0,1);
+  world_spheres[2].material.reflectivity=f32(0);
+  world_spheres[2].material.specular=vec3<f32>(0,0,0);
+
   // -- cone[0] -- 
-  world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
-  world_cones[0].radius= 0.25;
-  world_cones[0].height= 0.75;
-  world_cones[0].material.ambient=vec3<f32>(0.0,0.4,0.7);
-  world_cones[0].material.reflectivity=f32(0.5);
-  world_cones[0].material.specular=vec3<f32>(0, 0, 0);
+  // world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
+  // world_cones[0].radius= 0.25;
+  // world_cones[0].height= 0.75;
+  // world_cones[0].material.ambient=vec3<f32>(0,0,1);
+  // world_cones[0].material.reflectivity=f32(0.5);
+  // world_cones[0].material.specular=vec3<f32>(0, 0, 0);
 
   // -- cube[0] -- 
   // world_cubes[0].min=vec3<f32>( -1.0,  0.0, -1.0);
@@ -596,7 +603,7 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
 fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: f32)-> vec3<f32>
 {
   // reflection of view ray
-  let r = reflect(-viewDir, normal); 
+  let r = reflect(viewDir, normal); 
 
   // reflection square side length = a, this represents the surface roughness
   let a = reflectivity;
@@ -616,7 +623,7 @@ fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: 
   // note: might need to be normalized
   let glossy_dir = normalize(r + rand_u * edge_u + rand_v * edge_v);
 
-  return -glossy_dir;
+  return glossy_dir;
 }
 fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
     var cols=10.0;
@@ -833,8 +840,8 @@ var<private> pixel_position: vec2<f32>;
 var<private> image_resolution: vec2<f32>;
 
 // world objects
-var<private> world_spheres_count: i32 = 2;
-var<private> world_spheres: array<Sphere, 2>;
+var<private> world_spheres_count: i32 = 3;
+var<private> world_spheres: array<Sphere, 3>;
 
 var<private> world_triangles_count: i32 = 2;
 var<private> world_triangles: array<Triangle, 2>;
