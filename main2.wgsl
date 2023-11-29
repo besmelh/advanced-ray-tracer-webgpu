@@ -107,7 +107,7 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
-  world_spheres[0].material.reflectivity=f32(0.2);
+  world_spheres[0].material.reflectivity=f32(0.1);
   world_spheres[0].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[1] -- 
@@ -117,7 +117,7 @@ fn setup_scene_objects(){
   world_spheres[1].material.reflectivity=f32(0.2);
   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
-  // -- Sphere[2]] -- 
+    // -- Sphere[2]] -- 
   world_spheres[2].center=vec3<f32>(0.18, 0.4, -1);
   world_spheres[2].radius= 0.4;
   world_spheres[2].material.ambient=vec3<f32>(0,0,1);
@@ -125,8 +125,8 @@ fn setup_scene_objects(){
   world_spheres[2].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[3] -- 
-  world_spheres[3].center=vec3<f32>(0, 0.2, 0.7);
-  world_spheres[3].radius= 0.15;
+  world_spheres[3].center=vec3<f32>(0.18, 0.4, 0.9);
+  world_spheres[3].radius= 0.4;
   world_spheres[3].material.ambient=vec3<f32>(1,0,0);
   world_spheres[3].material.reflectivity=f32(0);
   world_spheres[3].material.specular=vec3<f32>(0,0,0);
@@ -271,8 +271,6 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
 // compute the glossy
 fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
   let reflectivity = rec.hit_material.reflectivity;
-  var reflection_color = vec3<f32>(0.0, 0.0, 0.0);
-  
   if (reflectivity > 0.0) {
     let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, reflectivity);
     // let reflectDir = reflect(normalize(-ray.dir), rec.normal);
@@ -282,63 +280,16 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     reflection_ray.dir = reflection_dir;
     reflection_ray.t_min = 0.001;
     reflection_ray.t_max = 10000.0;
-    reflection_color = get_reflection_color(reflection_ray); //uncomment this for single reflection ray
-    // reflection_color = get_pixel_color(reflection_ray); //uncomment this for 'recursive' reflection ray
-    reflection_color = reflection_color * reflectivity;
-  } 
-  return reflection_color;
-}
-
-// computer reflection iterativley
-fn compute_reflection_iter(ray: Ray, rec:HitRecord) -> vec3<f32> {
-    var reflection_color = vec3<f32>(0.0, 0.0, 0.0);
-    if (rec.hit_material.reflectivity > 0.0) {
-
-      // variables to be reasigned on each iteration
-      var current_ray = ray;
-      var current_rec = rec;
-      let max_reflection_depth: u32 = 5; // Limit the number of reflections
-
-      for (var i: u32 = 0; i < max_reflection_depth; i++) {
-        let reflection_dir = compute_glossy_reflection(current_ray.dir, current_rec.normal, current_rec.hit_material.reflectivity);
-        
-        // update values
-        current_ray.orig = current_rec.p + reflection_dir + 0.001; // Offset to prevent self-intersection
-        current_ray.dir = reflection_dir;
-        current_ray.t_min = 0.001;
-        current_ray.t_max = 10000.0;
-
-        current_rec = trace_ray(current_ray);
-        if (!current_rec.hit_found) {
-          break; // Exit loop if we hit the background
-        }
-
-        // Accumulate reflection color
-        // reflection_color += get_background_color() * current_rec.hit_material.reflectivity;
-        // reflection_color = get_pixel_color(reflection_ray);
-        // reflection_color = reflection_color * rec.hit_material.reflectivity;
-        reflection_color = reflection_color  + get_reflection_color(current_ray) * rec.hit_material.reflectivity;
-
-        // get pixel color
-        // var final_pixel_color = vec3<f32>(0,0,0);
-        // var rec = trace_ray(ray);
-        // if(!rec.hit_found) // if hit background
-        // {
-        //   final_pixel_color = get_background_color();
-        // }
-        // else
-        // {
-        //   // final_pixel_color = compute_direct_shading(ray, rec);
-        //   // final_pixel_color = compute_direct_shading(ray, rec);
-        //   final_pixel_color = compute_direct_shading(ray, rec);
-        //   // final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
-        //   final_pixel_color =  final_pixel_color + compute_reflection_iter(ray, rec);
-        //   // final_pixel_color = compute_shading(ray,rec);
-        // }
-        // return final_pixel_color;
-      }
-    }
-    return reflection_color;
+    let reflection_color = get_reflection_color(reflection_ray);
+    // Apply Fresnel effect using Schlick's approximation
+    // let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
+    // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
+    // // return reflection_color * rec.hit_material.specular * fresnel;
+    // return reflection_color * reflectivity * fresnel;
+    return reflection_color * reflectivity;
+  } else {
+    return vec3<f32>(0.0, 0.0, 0.0); // No reflection
+  }
 }
  
 // Trace ray and return the resulting contribution of this ray
@@ -355,7 +306,6 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
     // final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
-    // final_pixel_color =  final_pixel_color + compute_reflection_iter(ray, rec);
     // final_pixel_color = compute_shading(ray,rec);
   }
   return final_pixel_color;
@@ -735,7 +685,8 @@ fn update_camera_theta(){
   if(Key == 48) // key==0   
   {
     var theta = floatBuffer[0];
-    theta = theta + 0.01;
+    // theta = theta + 0.01;
+    theta = theta + 0.05;
     if(theta>=360) 
     {
        theta = 0.0;
