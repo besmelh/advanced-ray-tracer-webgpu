@@ -258,10 +258,11 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
 fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
   let reflectivity = rec.hit_material.reflectivity;
   if (reflectivity > 0.0) {
-    let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, rec.hit_material.reflectivity);
+    let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, reflectivity);
     // let reflectDir = reflect(normalize(-ray.dir), rec.normal);
     var reflection_ray: Ray;
-    reflection_ray.orig = rec.p + reflection_dir * 0.001; // Offset a bit to prevent self-intersection
+    // reflection_ray.orig = rec.p + reflection_dir * 0.001; // Offset a bit to prevent self-intersection
+    reflection_ray.orig = rec.p + reflection_dir + 0.001;
     reflection_ray.dir = reflection_dir;
     reflection_ray.t_min = 0.001;
     reflection_ray.t_max = 10000.0;
@@ -305,7 +306,8 @@ fn get_reflection_color(ray: Ray) -> vec3<f32> {
     reflection_color = compute_direct_shading(ray, rec);
     // No recursive reflection
   }
-  return reflection_color;
+  return vec3<f32>(1,0,0);
+  // return reflection_color;
 }
 
 fn trace_ray(ray: Ray) -> HitRecord{
@@ -597,6 +599,7 @@ fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: 
 
   // reflection square side length = a, this represents the surface roughness
   let a = reflectivity;
+  // let a = 0.02;
   // selecting random points from square
   let rand_u = -1 * (a/2) + rnd() * a;
   let rand_v = -1 * (a/2) + rnd() * a;
