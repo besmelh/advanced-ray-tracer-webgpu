@@ -107,14 +107,14 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
-  world_spheres[0].material.reflectivity=f32(0.1);
+  world_spheres[0].material.reflectivity=f32(0.9);
   world_spheres[0].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[1] -- 
   world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
   world_spheres[1].radius= 0.25;
   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
-  world_spheres[1].material.reflectivity=f32(0.2);
+  world_spheres[1].material.reflectivity=f32(1);
   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
     // -- Sphere[2]] -- 
@@ -265,7 +265,8 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
 
     // combine the lighting components
     var this_ks  = rec.hit_material.reflectivity;
-    return ambient * Ka + (diffuse * Kd  + specular_highlight * this_ks) * attenuation;
+    // return ambient * Ka + (diffuse * Kd  + specular_highlight * this_ks) * attenuation;
+    return ambient * Ka + (diffuse * Kd  + specular_highlight * Ks) * attenuation;
 }
 
 // compute the glossy
@@ -286,7 +287,8 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
     // // return reflection_color * rec.hit_material.specular * fresnel;
     // return reflection_color * reflectivity * fresnel;
-    return reflection_color * reflectivity;
+    return reflection_color * rec.hit_material.reflectivity;
+    // return reflection_color;
   } else {
     return vec3<f32>(0.0, 0.0, 0.0); // No reflection
   }
@@ -613,7 +615,7 @@ fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: 
   let r = reflect(viewDir, normal); 
 
   // reflection square side length = a, this represents the surface roughness
-  let a = reflectivity;
+  let a = 1 - reflectivity;
   // let a = 0.02;
   // selecting random points from square
   let rand_u = -1 * (a/2) + rnd() * a;
