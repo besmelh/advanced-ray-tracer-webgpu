@@ -103,33 +103,33 @@ fn setup_scene_objects(){
 // ----------------------------------------------------------------------------
 // Scene definition
 // ----------------------------------------------------------------------------
-  // -- Sphere[0] -- 
+  // -- Sphere[0] reflective red-- 
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
-  world_spheres[0].material.reflectivity=f32(0.9);
+  world_spheres[0].material.reflectivity=f32(1);
   world_spheres[0].material.specular=vec3<f32>(0,0,0);
 
-  // -- Sphere[1] -- 
-  world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
-  world_spheres[1].radius= 0.25;
-  world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
-  world_spheres[1].material.reflectivity=f32(1);
+  // -- Sphere[1] reflective blue-- 
+//   world_spheres[1].center=vec3<f32>(-0.5, 0.25, 0.5);
+//   world_spheres[1].radius= 0.25;
+//   world_spheres[1].material.ambient=vec3<f32>(0,0.0,0.7);
+//   world_spheres[1].material.reflectivity=f32(1);
+//   world_spheres[1].material.specular=vec3<f32>(0,0,0);
+
+    // -- Sphere[2] big blue -- 
+  world_spheres[1].center=vec3<f32>(0.18, 0.4, -1);
+  world_spheres[1].radius= 0.4;
+  world_spheres[1].material.ambient=vec3<f32>(0,0,1);
+  world_spheres[1].material.reflectivity=f32(0);
   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
-    // -- Sphere[2]] -- 
-  world_spheres[2].center=vec3<f32>(0.18, 0.4, -1);
+  // -- Sphere[3] big red -- 
+  world_spheres[2].center=vec3<f32>(0.18, 0.4, 0.9);
   world_spheres[2].radius= 0.4;
-  world_spheres[2].material.ambient=vec3<f32>(0,0,1);
+  world_spheres[2].material.ambient=vec3<f32>(1,0,0);
   world_spheres[2].material.reflectivity=f32(0);
   world_spheres[2].material.specular=vec3<f32>(0,0,0);
-
-  // -- Sphere[3] -- 
-  world_spheres[3].center=vec3<f32>(0.18, 0.4, 0.9);
-  world_spheres[3].radius= 0.4;
-  world_spheres[3].material.ambient=vec3<f32>(1,0,0);
-  world_spheres[3].material.reflectivity=f32(0);
-  world_spheres[3].material.specular=vec3<f32>(0,0,0);
 
   // -- cone[0] -- 
   // world_cones[0].center=vec3<f32>( 0.18,  0.0, -1);
@@ -612,6 +612,9 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
 fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: f32)-> vec3<f32>
 {
   // reflection of view ray
+//   viewDir = vec3<f32>(-viewDir.x, viewDir.y, viewDir.z);
+//   let r = reflect(vec3<f32>(viewDir.x, viewDir.y, viewDir.z), normal); 
+  
   let r = reflect(viewDir, normal); 
 
   // reflection square side length = a, this represents the surface roughness
