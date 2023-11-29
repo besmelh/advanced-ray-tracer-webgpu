@@ -56,19 +56,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       var ui = _left + (_right - _left) * ((pixel_position.x + sample_point.x) / image_resolution.x);
       var vi = _bottom + (_top - _bottom) * ((pixel_position.y + sample_point.y) / image_resolution.y);
       
-      let time = 0.5 * f32(p + q) / f32(n * n);
-      
-      world_spheres[1].center = world_spheres[1].center_0 * (1.0 - time) + world_spheres[1].center_1 * time;
+      // cur_time = 0.5 * f32(p + q) / f32(n * n);
+      cur_time =  0.5 * f32(p + q) / f32(n * n);
 
-      var ray:Ray = get_ray(camera, ui, vi, time);
+      var ray:Ray = get_ray(camera, ui, vi);
 
       // find the convergence to calculate the depth of field
       var converegence_point = ray.orig + camera.focal_length * ray.dir;
       var shifted_ray:Ray = get_shifted_ray(converegence_point, ray);
 
       pixel_color = pixel_color + get_pixel_color(shifted_ray);
-      // pixel_color = pixel_color + get_pixel_color(ray);
-      // pixel_color = pixel_color + vec3<f32>(1,0,0);
     }
   }
   pixel_color = pixel_color / f32(n*n);   
@@ -177,7 +174,7 @@ fn setup_scene_objects(){
   world_triangles[1].material.specular=vec3<f32>(0,0,0);
 }
 
-fn get_ray(camera:Camera, ui:f32, vj:f32, time:f32)->Ray{
+fn get_ray(camera:Camera, ui:f32, vj:f32)->Ray{
   var ray: Ray;
   ray.orig = camera.origin;
   ray.dir = normalize((camera.w*-1)+(camera.u*ui)+ (camera.v*vj));
@@ -313,11 +310,8 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   }
   else
   {
-    // final_pixel_color = compute_direct_shading(ray, rec);
-    // final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
-    // final_pixel_color = compute_shading(ray,rec);
   }
   return final_pixel_color;
 }
@@ -342,13 +336,15 @@ fn trace_ray(ray: Ray) -> HitRecord{
 	 var closest_so_far = ray.t_max;
    //=========================
   for (var i: i32 = 0; i < world_spheres_count; i++) {
+      if (world_spheres[i].in_motion){
+        world_spheres[i].center = world_spheres[i].center_0 * (1.0 - cur_time) + world_spheres[i].center_1 * cur_time;
+      }
       let temp_rec:HitRecord = sphere_intersection_test(ray,world_spheres[i]);
       if(temp_rec.hit_found){
         hit_found = true;
         if(closest_so_far> temp_rec.t){
           closest_so_far = temp_rec.t;
           hitWorld_rec = temp_rec;
-            
         }
       }
   }
@@ -881,3 +877,6 @@ var<private> world_cubes: array<Cube, 1>;
 
 // random number generator
 var<private> seed: u32 = 0;
+
+// random number generator
+var<private> cur_time: f32 = 0;
