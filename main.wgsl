@@ -35,7 +35,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 4;
+  var n = 2;
   var pixel_color = vec3<f32>(0,0,0);
   var stratum_size = 1.0 / f32(n); // Size of each stratum
   let focal_plane_normal = -camera.dir;
@@ -62,9 +62,19 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       // var converegence_point = camera.origin + camera.focal_length * normalize(camera.dir);
       let conv_t = dot(camera.focal_length - ray.orig, focal_plane_normal) / dot(ray.dir, focal_plane_normal);
       let convergence_point = ray.orig + conv_t * ray.dir;
-      var shifted_ray:Ray = get_shifted_ray(convergence_point, ray);
+      
+      // depth of feild effect of pixel stratum
+      var stratum_color = vec3<f32>(0,0,0);
+      var m = 2;
+      for (var p_2 = 0; p_2 <= m-1; p_2++) {
+        var shifted_ray:Ray = get_shifted_ray(convergence_point, ray);
+        stratum_color = stratum_color + get_pixel_color(shifted_ray);
+      }
 
-      pixel_color = pixel_color + get_pixel_color(shifted_ray);
+      stratum_color = stratum_color / f32(n);
+      pixel_color = pixel_color + stratum_color;
+      // var shifted_ray:Ray = get_shifted_ray(convergence_point, ray);
+      // pixel_color = pixel_color + get_pixel_color(shifted_ray);
       // pixel_color = pixel_color + get_pixel_color(ray);
       // pixel_color = pixel_color + vec3<f32>(1,0,0);
     }
