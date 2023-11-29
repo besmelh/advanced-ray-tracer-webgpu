@@ -39,7 +39,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 2;
+  var n = 3;
   var pixel_color = vec3<f32>(0,0,0);
   var stratum_size = 1.0 / f32(n); // Size of each stratum
 
@@ -55,8 +55,12 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       // Compute sample's coordinates on the image plane
       var ui = _left + (_right - _left) * ((pixel_position.x + sample_point.x) / image_resolution.x);
       var vi = _bottom + (_top - _bottom) * ((pixel_position.y + sample_point.y) / image_resolution.y);
-        
-      var ray:Ray = get_ray(camera,ui,vi);
+      
+      let time = 0.5 * f32(p + q) / f32(n * n);
+      
+      world_spheres[1].center = world_spheres[1].center_0 * (1.0 - time) + world_spheres[1].center_1 * time;
+
+      var ray:Ray = get_ray(camera, ui, vi, time);
 
       // find the convergence to calculate the depth of field
       var converegence_point = ray.orig + camera.focal_length * ray.dir;
@@ -105,6 +109,7 @@ fn setup_scene_objects(){
 // ----------------------------------------------------------------------------
   // -- Sphere[0] reflective red-- 
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
+  world_spheres[0].in_motion = false;
   world_spheres[0].radius= 0.25;
   world_spheres[0].material.ambient=vec3<f32>(0.7,0.0,0.0);
   world_spheres[0].material.reflectivity=f32(1);
@@ -119,6 +124,9 @@ fn setup_scene_objects(){
 
     // -- Sphere[2] big blue -- 
   world_spheres[1].center=vec3<f32>(0.18, 0.4, -1);
+  world_spheres[1].in_motion = true;
+  world_spheres[1].center_0=vec3<f32>(0.18, 0.4, -1);
+  world_spheres[1].center_1=vec3<f32>(0.18, 0.9, -1);
   world_spheres[1].radius= 0.4;
   world_spheres[1].material.ambient=vec3<f32>(0,0,1);
   world_spheres[1].material.reflectivity=f32(0);
@@ -126,6 +134,7 @@ fn setup_scene_objects(){
 
   // -- Sphere[3] big red -- 
   world_spheres[2].center=vec3<f32>(0.18, 0.4, 0.9);
+  world_spheres[2].in_motion = false;
   world_spheres[2].radius= 0.4;
   world_spheres[2].material.ambient=vec3<f32>(1,0,0);
   world_spheres[2].material.reflectivity=f32(0);
@@ -168,7 +177,7 @@ fn setup_scene_objects(){
   world_triangles[1].material.specular=vec3<f32>(0,0,0);
 }
 
-fn get_ray(camera:Camera,ui:f32,vj:f32)->Ray{
+fn get_ray(camera:Camera, ui:f32, vj:f32, time:f32)->Ray{
   var ray: Ray;
   ray.orig = camera.origin;
   ray.dir = normalize((camera.w*-1)+(camera.u*ui)+ (camera.v*vj));
@@ -765,6 +774,9 @@ struct HitRecord {
 struct Sphere
 {
   center:vec3<f32>,
+  in_motion: bool,
+  center_0:vec3<f32>, // center at time = 0
+  center_1:vec3<f32>, // center at time = 1
   radius:f32,
   material:Material
 }
