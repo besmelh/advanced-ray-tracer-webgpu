@@ -711,9 +711,9 @@ fn get_cubemap_uv(reflection_dir: vec3<f32>)->vec2<f32>{
         // shift to the top face's vertical position
         uv.y = uv.y * (1.0 / 3.0);
       } 
-      // + y, bottom face
+      // - y, bottom face
       else {
-        uv = vec2<f32>(dir.z / abs_dir.x, -dir.y / abs_dir.x);
+        uv = vec2<f32>(dir.x / abs_dir.y, -dir.z / abs_dir.y);
         uv = uv * 0.5 + 0.5;
         // shift to the bottom face's horizontal position
         uv.y = uv.y * (1.0 / 3.0) + (2.0 / 3.0); 
@@ -743,7 +743,7 @@ fn get_cubemap_uv(reflection_dir: vec3<f32>)->vec2<f32>{
     }
 
     // flip the y-coordinate to match the texture's origin at the top-left corner
-    uv.y = 1.0 - uv.y;
+    // uv.y = 1.0 - uv.y;
     return uv;
 }
 
