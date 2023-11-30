@@ -131,7 +131,7 @@ fn setup_scene_objects(){
   world_spheres[2].in_motion = false;
   world_spheres[2].radius= 0.4;
   world_spheres[2].material.ambient=vec3<f32>(1,0,0);
-  world_spheres[2].material.reflectivity=f32(0);
+  world_spheres[2].material.reflectivity=f32(0.8);
   world_spheres[2].material.specular=vec3<f32>(0,0,0);
 
   // -- cone[0] -- 
@@ -278,46 +278,80 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   // Sample the environment map regardless of whether the ray hits an object.
   let background_texture = sample_cubemap(ray.dir);
 
-  var reflection_exists = false;
-  
-  // save a reflection ray direction variable to potentially sample it using cubemap
-  var reflection_ray = ray;
+  // count how many reflection bounces we find for this ray
+  var refl_rays_count = 0;
+
+  // preset all values in refl_rays
+  for (var i: i32 =0; i < 3; i++){
+    refl_rays[i] = ray;
+  }
 
   var final_pixel_color = vec3<f32>(0,0,0);
 
   var rec = trace_ray(ray);
   if(!rec.hit_found) // if hit background
   {
-    //  final_pixel_color = get_background_color();
     final_pixel_color = background_texture;
   }
   else
   {
     final_pixel_color = compute_direct_shading(ray, rec);
-    
-    // if the material we hit is reflective
-    if (rec.hit_material.reflectivity > 0){
-      reflection_exists = true;
-      reflection_ray = compute_glossy_reflection_ray(ray, rec);
+
+    var cur_ray = ray;
+    var cur_rec = rec;
+
+    // first reflective ray
+    if (cur_rec.hit_material.reflectivity > 0){
+      
+      // my first reflective ray is a result of whatever is produced by this info
+      refl_rays_count += 1;
+      refl_rays[0] = cur_ray;
+      refl_recs[0] = cur_rec;
+
+      // we only want to have up to 3 reflection rays total - including the one counted above
+      for (var i: i32 = 1; i < 3; i++){
+        // check what the cur reflective surface points to
+        cur_ray = compute_glossy_reflection_ray(cur_ray, cur_rec);
+        cur_rec = trace_ray(cur_ray);
+        refl_rays[i] = cur_ray;
+        refl_recs[i] = cur_rec;
+        refl_rays_count += 1;
+
+        // if this ray hits nothing
+        if (!cur_rec.hit_found){
+          break;
+        }
+
+        // if this ray hits a non reflective surface
+        if (cur_rec.hit_material.reflectivity == 0){
+          break;
+        } 
+      }
     }
   }
 
-  // potentially retrieve reflection texture
-  // must be computed even if there is no reflection ray, due to WebGPU standards
-  let reflection_texture = sample_cubemap(reflection_ray.dir);
+  // retreive reflection textures that correspond to each of our computed reflection rays
+  // if a reflection ray doesn't exist, we just give it a default values correspondingto the original ray
+  refl_rays_bg[0] = background_texture;
+  for (var i: i32 = 1; i < 3; i++){
+    refl_rays_bg[i] = sample_cubemap(refl_rays[i].dir);
+  }
 
-  // if the surface we found is reflective, add the reflection texture
-  if (reflection_exists){
-    var ref_rec = trace_ray(reflection_ray);
+  // loop through our reflection rays array and add the values to the final color
+  for (var i: i32 = 1; i < refl_rays_count; i++) {
     // if the reflection ray hits another object
-    if (ref_rec.hit_found){
-      final_pixel_color += get_reflection_color(reflection_ray) * rec.hit_material.reflectivity;
+    // var cur_refl_rec = trace_ray(refl_recs[i]);
+    if (refl_recs[i].hit_found){
+      final_pixel_color += compute_direct_shading(refl_rays[i], refl_recs[i]) * refl_recs[i-1].hit_material.reflectivity;
+      // final_pixel_color += get_reflection_color(refl_rays[i]) * refl_recs[i].hit_material.reflectivity;
     } 
-    // if no object is hit, add reflection_texture
+    // if no object is hit, add reflection_texture of the background
     else {
-      final_pixel_color += reflection_texture;
+      final_pixel_color += refl_rays_bg[i];
     }
+
   }
+  
   return final_pixel_color;
 }
 
@@ -973,3 +1007,8 @@ var<private> seed: u32 = 0;
 
 // random number generator
 var<private> cur_time: f32 = 0;
+
+// save the reflective rays
+var<private> refl_rays: array<Ray, 3>;
+var<private> refl_recs: array<HitRecord, 3>;
+var<private> refl_rays_bg: array<vec3<f32>, 3>; //points to texture bg
