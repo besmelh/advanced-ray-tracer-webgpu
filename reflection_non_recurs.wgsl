@@ -9,9 +9,6 @@
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-  //initial values
-  // floatBuffer[1] = 2; //focal length
-  // floatBuffer[2] = 0.01 //camera aperture
 
   // global variable
   image_resolution = Resolution.xy;
@@ -275,36 +272,6 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     return ambient * Ka + (diffuse * Kd  + specular_highlight * Ks) * attenuation;
 }
 
-// compute the glossy reflection
-fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
-  let reflectivity = rec.hit_material.reflectivity;
-  if (reflectivity > 0.0) {
-    let reflection_dir = compute_glossy_reflection(ray.dir, rec.normal, reflectivity);
-    // let reflectDir = reflect(normalize(-ray.dir), rec.normal);
-    var reflection_ray: Ray;
-    // reflection_ray.orig = rec.p + reflection_dir * 0.001; // Offset a bit to prevent self-intersection
-    reflection_ray.orig = rec.p + reflection_dir + 0.001;
-    reflection_ray.dir = reflection_dir;
-    reflection_ray.t_min = 0.001;
-    reflection_ray.t_max = 10000.0;
-    let reflection_color = get_reflection_color(reflection_ray);
-    // Apply Fresnel effect using Schlick's approximation
-    // let F0 = vec3<f32>(0.04, 0.04, 0.04); // Base reflectivity for non-metallic surface
-    // let fresnel = F0 + (1.0 - F0) * pow(1.0 - dot(-ray.dir, rec.normal), 5.0);
-    // // return reflection_color * rec.hit_material.specular * fresnel;
-    // return reflection_color * reflectivity * fresnel;
-    return reflection_color * rec.hit_material.reflectivity;
-    // return reflection_color;
-  } else {
-    return vec3<f32>(0.0, 0.0, 0.0); // No reflection
-  }
-}
-
-// assumes we already checked that reflectivity > 0
-fn compute_reflection_2(reflection_ray: Ray, rec:HitRecord) -> vec3<f32> {
-  let reflection_color = get_reflection_color(reflection_ray); //get the color of what the ray hits, 
-  return reflection_color * rec.hit_material.reflectivity;
-}
  
 // Trace ray and return the resulting contribution of this ray
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
@@ -314,7 +281,6 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   var reflection_exists = false;
   
   // save a reflection ray direction variable to potentially sample it using cubemap
-  // var reflection_dir = vec3<f32>(0, 0, 0);
   var reflection_ray = ray;
 
   var final_pixel_color = vec3<f32>(0,0,0);
@@ -352,46 +318,18 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
       final_pixel_color += reflection_texture;
     }
   }
-
-
   return final_pixel_color;
 }
 
 // Trace reflection ray and return the resulting color contribution of this ray
 fn get_reflection_color(ray: Ray) -> vec3<f32> {
-  // let background_color = sample_cubemap_reflection(ray.dir);
-
-  // var reflection_color = vec3<f32>(0,0,0);
   var rec = trace_ray(ray);
   
   if(!rec.hit_found) { // if hit background
-    // reflection_color = get_background_color();
-    // reflection_color = background_color;
-    // return background_color;
     return get_background_color();
-    // return vec3<f32>(0,0,0);
   } 
-  
-  // else {
-  //   reflection_color = compute_direct_shading(ray, rec);
-  //   // No recursive reflection
-  // }
-  // return vec3<f32>(1,0,0);
-  // return reflection_color;
   return compute_direct_shading(ray, rec);
 }
-
-// fn get_reflection_color(ray: Ray) -> vec3<f32> {
-//   let cubemap_color = sample_cubemap(ray.dir);
-//   return cubemap_color;
-//   // var rec = trace_ray(ray);
-  
-//   // if(!rec.hit_found) { // if hit background
-//   //   // return sample_cubemap(ray.dir);
-//   //   return cubemap_color;
-//   // } 
-//   // return compute_direct_shading(ray, rec);
-// }
 
 fn trace_ray(ray: Ray) -> HitRecord{
    var hitWorld_rec:HitRecord;
@@ -676,29 +614,6 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
     let      specular            =  pow(max(dot(V, R), 0.0), phong_exponent);
     return light.color * specular;
 }
-// r' = r + rand_u * edge_u + rand_v * edge_v
-fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: f32)-> vec3<f32>
-{
-  
-  let r = reflect(viewDir, normal); 
-
-  // reflection square side length = a, this represents the surface roughness
-  let a = 1 - reflectivity;
-  // selecting random points from square
-  let rand_u = -1 * (a/2) + rnd() * a;
-  let rand_v = -1 * (a/2) + rnd() * a;
-
-  // find the edge vectors of the square plane
-  let r_norm = normalize(r);
-  let up = vec3<f32>(0.0, 1.0, 0.0); // Use a generic up vector
-  let edge_u = normalize(cross(up, r_norm));
-  let edge_v = cross(r_norm, edge_u);
-
-  // note: might need to be normalized
-  let glossy_dir = normalize(r + rand_u * edge_u + rand_v * edge_v);
-
-  return glossy_dir;
-}
 
 // compute the ray of the the glossy reflection
 // assumes we already checked that a reflection does indeed exist for this surface
@@ -718,6 +633,7 @@ fn compute_glossy_reflection_ray(ray:Ray, rec:HitRecord)-> Ray
   let edge_v = cross(r_norm, edge_u);
 
   // note: might need to be normalized
+  // r' = r + rand_u * edge_u + rand_v * edge_v
   let reflection_dir = normalize(r + rand_u * edge_u + rand_v * edge_v);
 
   var reflection_ray: Ray;
@@ -837,12 +753,6 @@ fn sample_cubemap(direction: vec3<f32>) -> vec3<f32> {
     let color = textureSample(texture1, sampler_, uv); // Sample the cubemap texture
     return color.rgb;  // Return the color from the cubemap
 }
-
-// fn sample_cubemap_reflection(direction: vec3<f32>) -> vec3<f32> {
-//     let uv = get_cubemap_uv(direction);  // Get the UV coordinates from the direction
-//     let color = textureSample(texture2, sampler_, uv); // Sample the cubemap texture
-//     return color.rgb;  // Return the color from the cubemap
-// }
 
 //-----------------------
 // buffer functions
