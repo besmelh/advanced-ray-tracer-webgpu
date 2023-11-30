@@ -117,17 +117,17 @@ fn setup_scene_objects(){
 //   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
     // -- Sphere[2] big blue -- 
-  world_spheres[1].center=vec3<f32>(0.18, 0.4, -1);
+  world_spheres[1].center=vec3<f32>(1, 0.4, 0);
   world_spheres[1].in_motion = true;
-  world_spheres[1].center_0=vec3<f32>(0.18, 0.4, -1);
-  world_spheres[1].center_1=vec3<f32>(0.18, 0.9, -1);
+  world_spheres[1].center_0=vec3<f32>(1, 0.4, 0);
+  world_spheres[1].center_1=vec3<f32>(1, 0.9, 0);
   world_spheres[1].radius= 0.4;
   world_spheres[1].material.ambient=vec3<f32>(0,0,1);
   world_spheres[1].material.reflectivity=f32(0);
   world_spheres[1].material.specular=vec3<f32>(0,0,0);
 
   // -- Sphere[3] big red -- 
-  world_spheres[2].center=vec3<f32>(0.18, 0.4, 0.9);
+  world_spheres[2].center=vec3<f32>(-1, 0.4, 0);
   world_spheres[2].in_motion = false;
   world_spheres[2].radius= 0.4;
   world_spheres[2].material.ambient=vec3<f32>(1,0,0);
