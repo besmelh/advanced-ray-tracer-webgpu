@@ -39,7 +39,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 
   // perform startified supersampling for antialiasing
-  var n = 3;
+  var n = 1;
   var pixel_color = vec3<f32>(0,0,0);
   var stratum_size = 1.0 / f32(n); // Size of each stratum
 
@@ -121,7 +121,7 @@ fn setup_scene_objects(){
 
     // -- Sphere[2] big blue -- 
   world_spheres[1].center=vec3<f32>(0.18, 0.4, -1);
-  world_spheres[1].in_motion = true;
+  world_spheres[1].in_motion = false;
   world_spheres[1].center_0=vec3<f32>(0.18, 0.4, -1);
   world_spheres[1].center_1=vec3<f32>(0.18, 0.9, -1);
   world_spheres[1].radius= 0.4;
@@ -270,7 +270,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     // specular_highlight = specular_highlight * soft_shadow_factor;
 
     // combine the lighting components
-    // var this_ks  = rec.hit_material.reflectivity;
+    var this_ks  = rec.hit_material.reflectivity;
     // return ambient * Ka + (diffuse * Kd  + specular_highlight * this_ks) * attenuation;
     return ambient * Ka + (diffuse * Kd  + specular_highlight * Ks) * attenuation;
 }
@@ -302,23 +302,24 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
  
 // Trace ray and return the resulting contribution of this ray
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
-  // Sample the environment map regardless of whether the ray hits an object.
-  let background_color = sample_cubemap(ray.dir);
-
   var final_pixel_color = vec3<f32>(0,0,0);
   var rec = trace_ray(ray);
   if(!rec.hit_found) // if hit background
   {
-    //  final_pixel_color = get_background_color();
-    // final_pixel_color = sample_cubemap(ray.dir);
-    final_pixel_color = background_color;
+     final_pixel_color = get_background_color();
   }
   else
   {
     final_pixel_color = compute_direct_shading(ray, rec);
     final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
   }
-  return final_pixel_color;
+  
+  if (final_pixel_color.x >= 0.5 || final_pixel_color.y >= 0.5 || final_pixel_color.z >= 0.5){
+    return vec3<f32>(0.7, 0, 0);
+  } else {
+    return vec3<f32>(0.0, 0, 0.3);
+  }
+  // return final_pixel_color;
 }
 
 // Trace reflection ray and return the resulting color contribution of this ray
@@ -621,17 +622,23 @@ fn compute_specular(viewDir:vec3<f32>, lightDir:vec3<f32>, normal:vec3<f32>)-> v
 // r' = r + rand_u * edge_u + rand_v * edge_v
 fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: f32)-> vec3<f32>
 {
+  // reflection of view ray
+//   viewDir = vec3<f32>(-viewDir.x, viewDir.y, viewDir.z);
+//   let r = reflect(vec3<f32>(viewDir.x, viewDir.y, viewDir.z), normal); 
   
   let r = reflect(viewDir, normal); 
 
   // reflection square side length = a, this represents the surface roughness
   let a = 1 - reflectivity;
+  // let a = 0.02;
   // selecting random points from square
   let rand_u = -1 * (a/2) + rnd() * a;
   let rand_v = -1 * (a/2) + rnd() * a;
 
   // find the edge vectors of the square plane
   let r_norm = normalize(r);
+  // let edge_u = normalize(cross(camera.v, r_norm));
+  // let edge_v = cross(camera.v, edge_u);
   let up = vec3<f32>(0.0, 1.0, 0.0); // Use a generic up vector
   let edge_u = normalize(cross(up, r_norm));
   let edge_v = cross(r_norm, edge_u);
@@ -648,12 +655,10 @@ fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
                   floor(uv.y * rows);
     if(modulo(total, 2.0) == 0.0)
     {
-      // green
       return vec3<f32>(0,0.4,0);
     }
     else
     {
-      // white
       return vec3<f32>(0.8);
     }
 }
@@ -663,92 +668,6 @@ fn get_background_color()->vec3<f32>{
     let t = pixel_position.y / image_resolution.y;
     return t*vec3<f32>(0.2, 0.2, 0.2) + (1.0-t)*vec3<f32>(1.0, 1.0, 1.0);
 }
-
-
-// returns the coordinates on the texture 
-// layout of faces:
-//        [Top]
-// [Left] [Front] [Right] [Back]
-//        [Bottom]
-fn get_cubemap_uv(reflection_dir: vec3<f32>)->vec2<f32>{
-
-    var uv = vec2<f32>(0, 0);
-    let dir = normalize(reflection_dir);
-    let abs_dir = abs(dir);
-    
-    // determine which cubemap face the direction vector is pointing to.
-    // x-face ********************************
-    if (abs_dir.x > abs_dir.y && abs_dir.x > abs_dir.z){
-      // + x, right face
-      if (reflection_dir.x > 0){
-        uv = vec2<f32>(-dir.z / abs_dir.x, -dir.y / abs_dir.x);
-        uv = uv * 0.5 + 0.5;
-        // shift to the right face's horizontal position
-        uv.x = uv.x * 0.25 + 0.5; 
-      } 
-      // - x, left face
-      else {
-        uv = vec2<f32>(dir.z / abs_dir.x, -dir.y / abs_dir.x);
-        uv = uv * 0.5 + 0.5;
-        // shift to the left face's horizontal position
-        uv.x = uv.x * 0.25;
-      }
-      // adjust to vertical position
-      uv.y = uv.y * (1.0 / 3.0) + (1.0 / 3.0); 
-    } 
-
-    // y-face ********************************
-    else if (abs_dir.y > abs_dir.x && abs_dir.y > abs_dir.z){
-      // + y, top face
-      if (reflection_dir.y > 0){
-        uv = vec2<f32>(dir.x / abs_dir.y, dir.z / abs_dir.y);
-        uv = uv * 0.5 + 0.5;
-        // shift to the top face's vertical position
-        uv.y = uv.y * (1.0 / 3.0);
-      } 
-      // + y, bottom face
-      else {
-        uv = vec2<f32>(dir.z / abs_dir.x, -dir.y / abs_dir.x);
-        uv = uv * 0.5 + 0.5;
-        // shift to the bottom face's horizontal position
-        uv.y = uv.y * (1.0 / 3.0) + (2.0 / 3.0); 
-      }
-      // adjust to horizontal position between left and right faces
-      uv.x = uv.x * 0.25 + 0.25; 
-    }
-
-    // z-face ********************************
-    else if (abs_dir.z > abs_dir.x && abs_dir.z > abs_dir.y){
-      // + z, front face
-      if (reflection_dir.y > 0){
-        uv = vec2<f32>(dir.x / abs_dir.z, -dir.y / abs_dir.z);
-        uv = uv * 0.5 + 0.5;
-        // shift to the front face's horizontal position
-        uv.x = uv.x * 0.25 + 0.25;
-      } 
-      // - z, back face
-      else {
-        uv = vec2<f32>(-dir.x / abs_dir.z, -dir.y / abs_dir.z);
-        uv = uv * 0.5 + 0.5;
-        // shift to the back face's horizontal position
-        uv.x = uv.x * 0.25 + 0.75; 
-      }
-      // adjust to the middle vertical position
-      uv.y = uv.y * (1.0 / 3.0) + (1.0 / 3.0); 
-    }
-
-    // flip the y-coordinate to match the texture's origin at the top-left corner
-    uv.y = 1.0 - uv.y;
-    return uv;
-}
-
-// returns color from cubemap
-fn sample_cubemap(direction: vec3<f32>) -> vec3<f32> {
-    let uv = get_cubemap_uv(direction);  // Get the UV coordinates from the direction
-    let color = textureSample(texture1, sampler_, uv); // Sample the cubemap texture
-    return color.rgb;  // Return the color from the cubemap
-}
-
 //-----------------------
 // buffer functions
 //-----------------------
