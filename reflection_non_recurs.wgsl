@@ -275,7 +275,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
     return ambient * Ka + (diffuse * Kd  + specular_highlight * Ks) * attenuation;
 }
 
-// compute the glossy
+// compute the glossy reflection
 fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
   let reflectivity = rec.hit_material.reflectivity;
   if (reflectivity > 0.0) {
@@ -299,41 +299,99 @@ fn compute_reflection(ray: Ray, rec:HitRecord) -> vec3<f32> {
     return vec3<f32>(0.0, 0.0, 0.0); // No reflection
   }
 }
+
+// assumes we already checked that reflectivity > 0
+fn compute_reflection_2(reflection_ray: Ray, rec:HitRecord) -> vec3<f32> {
+  let reflection_color = get_reflection_color(reflection_ray); //get the color of what the ray hits, 
+  return reflection_color * rec.hit_material.reflectivity;
+}
  
 // Trace ray and return the resulting contribution of this ray
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
   // Sample the environment map regardless of whether the ray hits an object.
-  let background_color = sample_cubemap(ray.dir);
+  let background_texture = sample_cubemap(ray.dir);
+
+  var reflection_exists = false;
+  
+  // save a reflection ray direction variable to potentially sample it using cubemap
+  // var reflection_dir = vec3<f32>(0, 0, 0);
+  var reflection_ray = ray;
 
   var final_pixel_color = vec3<f32>(0,0,0);
+
   var rec = trace_ray(ray);
   if(!rec.hit_found) // if hit background
   {
     //  final_pixel_color = get_background_color();
-    // final_pixel_color = sample_cubemap(ray.dir);
-    final_pixel_color = background_color;
+    final_pixel_color = background_texture;
   }
   else
   {
     final_pixel_color = compute_direct_shading(ray, rec);
-    final_pixel_color =  final_pixel_color + compute_reflection(ray, rec);
+    
+    // if the material we hit is reflective
+    if (rec.hit_material.reflectivity > 0){
+      reflection_exists = true;
+      reflection_ray = compute_glossy_reflection_ray(ray, rec);
+    }
   }
+
+  // potentially retrieve reflection texture
+  // must be computed even if there is no reflection ray, due to WebGPU standards
+  let reflection_texture = sample_cubemap(reflection_ray.dir);
+
+  // if the surface we found is reflective, add the reflection texture
+  if (reflection_exists){
+    var ref_rec = trace_ray(reflection_ray);
+    // if the reflection ray hits another object
+    if (ref_rec.hit_found){
+      final_pixel_color += get_reflection_color(reflection_ray) * rec.hit_material.reflectivity;
+    } 
+    // if no object is hit, add reflection_texture
+    else {
+      final_pixel_color += reflection_texture;
+    }
+  }
+
+
   return final_pixel_color;
 }
 
 // Trace reflection ray and return the resulting color contribution of this ray
 fn get_reflection_color(ray: Ray) -> vec3<f32> {
-  var reflection_color = vec3<f32>(0,0,0);
+  // let background_color = sample_cubemap_reflection(ray.dir);
+
+  // var reflection_color = vec3<f32>(0,0,0);
   var rec = trace_ray(ray);
+  
   if(!rec.hit_found) { // if hit background
-    reflection_color = get_background_color();
-  } else {
-    reflection_color = compute_direct_shading(ray, rec);
-    // No recursive reflection
-  }
+    // reflection_color = get_background_color();
+    // reflection_color = background_color;
+    // return background_color;
+    return get_background_color();
+    // return vec3<f32>(0,0,0);
+  } 
+  
+  // else {
+  //   reflection_color = compute_direct_shading(ray, rec);
+  //   // No recursive reflection
+  // }
   // return vec3<f32>(1,0,0);
-  return reflection_color;
+  // return reflection_color;
+  return compute_direct_shading(ray, rec);
 }
+
+// fn get_reflection_color(ray: Ray) -> vec3<f32> {
+//   let cubemap_color = sample_cubemap(ray.dir);
+//   return cubemap_color;
+//   // var rec = trace_ray(ray);
+  
+//   // if(!rec.hit_found) { // if hit background
+//   //   // return sample_cubemap(ray.dir);
+//   //   return cubemap_color;
+//   // } 
+//   // return compute_direct_shading(ray, rec);
+// }
 
 fn trace_ray(ray: Ray) -> HitRecord{
    var hitWorld_rec:HitRecord;
@@ -641,6 +699,37 @@ fn compute_glossy_reflection(viewDir:vec3<f32>, normal:vec3<f32>, reflectivity: 
 
   return glossy_dir;
 }
+
+// compute the ray of the the glossy reflection
+// assumes we already checked that a reflection does indeed exist for this surface
+fn compute_glossy_reflection_ray(ray:Ray, rec:HitRecord)-> Ray
+{
+  let r = reflect(ray.dir, rec.normal); 
+  // reflection square side length = a, this represents the surface roughness
+  let a = 1 - rec.hit_material.reflectivity;
+  // selecting random points from square
+  let rand_u = -1 * (a/2) + rnd() * a;
+  let rand_v = -1 * (a/2) + rnd() * a;
+
+  // find the edge vectors of the square plane
+  let r_norm = normalize(r);
+  let up = vec3<f32>(0.0, 1.0, 0.0); // Use a generic up vector
+  let edge_u = normalize(cross(up, r_norm));
+  let edge_v = cross(r_norm, edge_u);
+
+  // note: might need to be normalized
+  let reflection_dir = normalize(r + rand_u * edge_u + rand_v * edge_v);
+
+  var reflection_ray: Ray;
+  reflection_ray.orig = rec.p + reflection_dir + 0.001; // Offset a bit to prevent self-intersection
+  reflection_ray.dir = reflection_dir;
+  reflection_ray.t_min = 0.001;
+  reflection_ray.t_max = 10000.0;
+
+  return reflection_ray;
+}
+
+
 fn get_checkerboard_texture_color(uv:vec2<f32>)->vec3<f32>{
     var cols=10.0;
     var rows=10.0;
@@ -748,6 +837,12 @@ fn sample_cubemap(direction: vec3<f32>) -> vec3<f32> {
     let color = textureSample(texture1, sampler_, uv); // Sample the cubemap texture
     return color.rgb;  // Return the color from the cubemap
 }
+
+// fn sample_cubemap_reflection(direction: vec3<f32>) -> vec3<f32> {
+//     let uv = get_cubemap_uv(direction);  // Get the UV coordinates from the direction
+//     let color = textureSample(texture2, sampler_, uv); // Sample the cubemap texture
+//     return color.rgb;  // Return the color from the cubemap
+// }
 
 //-----------------------
 // buffer functions
