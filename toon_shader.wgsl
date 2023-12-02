@@ -315,17 +315,16 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
     // if the reflection ray hits another object
     // var cur_refl_rec = trace_ray(refl_recs[i]);
     if (refl_recs[i].hit_found){
-      // var reflection_color += compute_direct_shading(refl_rays[i], refl_recs[i]) * refl_recs[i-1].hit_material.reflectivity;
-      var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]);
+      var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]) * refl_recs[i-1].hit_material.reflectivity;
+      // var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i])  * refl_recs[i-1].hit_material.reflectivity;
       // Quantize the reflection color to maintain the toon effect
-      reflection_color = quantize_color(reflection_color, 2); // Assuming you have a function to quantize colors
+      // reflection_color = quantize_color(reflection_color, 2); // Assuming you have a function to quantize colors
       // Blend the reflection color with the object's color based on reflectivity
-      final_pixel_color = mix(final_pixel_color, reflection_color, rec.hit_material.reflectivity);
+      final_pixel_color = mix(final_pixel_color, reflection_color, refl_recs[i-1].hit_material.reflectivity);
+      // final_pixel_color += reflection_color;
     } 
     // if no object is hit, add reflection_texture of the background
     else {
-      // final_pixel_color += refl_rays_bg[i];
-      // var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]);
       var reflection_color = quantize_color(refl_rays_bg[i], bg_levels);
       final_pixel_color = mix(final_pixel_color, reflection_color, rec.hit_material.reflectivity);
     }
