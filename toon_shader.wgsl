@@ -248,7 +248,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
   // Sample the environment map regardless of whether the ray hits an object.
   let background_texture = sample_cubemap(ray.dir);
-  let bg_levels = u32(10);
+  let bg_levels = u32(5);
 
   // count how many reflection bounces we find for this ray
   var refl_rays_count = 0;
@@ -326,7 +326,7 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
     else {
       // final_pixel_color += refl_rays_bg[i];
       // var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]);
-      var reflection_color = quantize_color(background_texture, bg_levels);
+      var reflection_color = quantize_color(refl_rays_bg[i], bg_levels);
       final_pixel_color = mix(final_pixel_color, reflection_color, rec.hit_material.reflectivity);
     }
   }
