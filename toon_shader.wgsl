@@ -105,7 +105,7 @@ fn setup_scene_objects(){
   world_spheres[0].center=vec3<f32>(0, 0.25, 0);
   world_spheres[0].in_motion = false;
   world_spheres[0].radius= 0.25;
-  world_spheres[0].material.ambient=vec3<f32>(0.2,0.0,0.0);
+  world_spheres[0].material.ambient=vec3<f32>(0.5,0.0,0.0);
   world_spheres[0].material.diffuse=vec3<f32>(1,0,0);
   world_spheres[0].material.reflectivity=f32(1);
 
@@ -209,7 +209,8 @@ fn random_from_circle() -> vec2<f32> {
 
 // function that only calculates the direct lighting and is called by `get_pixel_color`.
 fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
-  let ambient = rec.hit_material.ambient;
+  // let ambient = rec.hit_material.ambient;
+  let ambient = rec.hit_material.diffuse;
   var toon_shaded_diffuse = vec3<f32>(0.0, 0.0, 0.0);
   var attenuation = 1.0;
 
