@@ -220,36 +220,6 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
   let light_a = vec3<f32>(light.position.x + 0.5, 0, 0); //edge 1 vector
   let light_b = vec3<f32>(0, light.position.y + 0.5, 0); //edge 2 vector
 
-    // number of samples for soft shadows
-  let num_shadow_samples: u32 = 1; // 3 * 3
-
-  //  for (var i: u32 = 0; i < num_shadow_samples; i++) {
-  //     // choose random point on paralleogram light area
-  //     let random_a = rnd();
-  //     let random_b = rnd();
-  //     let light_r = light_c + f32(random_a) * light_a + f32(random_b) * light_b;
-
-  //     var lightDir  = light_r - rec.p;
-  //     let lightDistance = length(lightDir);
-  //     lightDir = normalize(lightDir);
-
-  //     // Tracing shadow ray only if the light is visible from the surface
-  //     if(dot(rec.normal, lightDir) > 0.0) {
-  //       var shadow_ray: Ray;
-  //       shadow_ray.orig =  rec.p;
-  //       shadow_ray.dir = lightDir;
-  //       shadow_ray.t_min = 0.001;
-  //       shadow_ray.t_max = lightDistance - shadow_ray.t_min;
-  //       var shadow_rec = trace_ray(shadow_ray);
-  //       if (shadow_rec.hit_found) { 
-  //         // point is in shadow
-  //         toon_shaded_diffuse = vec3<f32>(0, 0, 0);
-  //       } else {
-  //         toon_shaded_diffuse = rec.hit_material.diffuse * compute_toon_diffuse(lightDir, rec.normal, 2);
-  //       }
-  //     }
-  //  }
-
     var lightDir  = light.position - rec.p;
     let lightDistance = length(lightDir);
     lightDir = normalize(lightDir);
@@ -278,6 +248,7 @@ fn compute_direct_shading(ray: Ray, rec:HitRecord) -> vec3<f32> {
 fn get_pixel_color(ray: Ray) -> vec3<f32> {
   // Sample the environment map regardless of whether the ray hits an object.
   let background_texture = sample_cubemap(ray.dir);
+  let bg_levels = u32(10);
 
   // count how many reflection bounces we find for this ray
   var refl_rays_count = 0;
@@ -292,16 +263,85 @@ fn get_pixel_color(ray: Ray) -> vec3<f32> {
   var rec = trace_ray(ray);
   if(!rec.hit_found) // if hit background
   {
-    final_pixel_color = background_texture;
+    // final_pixel_color = background_texture;
+    final_pixel_color = quantize_color(background_texture, bg_levels);
   }
   else
   {
     final_pixel_color = compute_direct_shading(ray, rec);
     var cur_ray = ray;
     var cur_rec = rec;
+
+    // first reflective ray
+    if (cur_rec.hit_material.reflectivity > 0){
+      
+      // my first reflective ray is a result of whatever is produced by this info
+      refl_rays_count += 1;
+      refl_rays[0] = cur_ray;
+      refl_recs[0] = cur_rec;
+
+      // we only want to have up to 3 reflection rays total - including the one counted above
+      for (var i: i32 = 1; i < 3; i++){
+        // check what the cur reflective surface points to
+        cur_ray = compute_glossy_reflection_ray(cur_ray, cur_rec);
+        cur_rec = trace_ray(cur_ray);
+        refl_rays[i] = cur_ray;
+        refl_recs[i] = cur_rec;
+        refl_rays_count += 1;
+
+        // if this ray hits nothing
+        if (!cur_rec.hit_found){
+          break;
+        }
+
+        // if this ray hits a non reflective surface
+        if (cur_rec.hit_material.reflectivity == 0){
+          break;
+        } 
+      }
+    }
+
+  }
+
+    // retreive reflection textures that correspond to each of our computed reflection rays
+  // if a reflection ray doesn't exist, we just give it a default values correspondingto the original ray
+  refl_rays_bg[0] = background_texture;
+  for (var i: i32 = 1; i < 3; i++){
+    refl_rays_bg[i] = sample_cubemap(refl_rays[i].dir);
+  }
+
+  // loop through our reflection rays array and add the values to the final color
+  for (var i: i32 = 1; i < refl_rays_count; i++) {
+    // if the reflection ray hits another object
+    // var cur_refl_rec = trace_ray(refl_recs[i]);
+    if (refl_recs[i].hit_found){
+      // var reflection_color += compute_direct_shading(refl_rays[i], refl_recs[i]) * refl_recs[i-1].hit_material.reflectivity;
+      var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]);
+      // Quantize the reflection color to maintain the toon effect
+      reflection_color = quantize_color(reflection_color, 2); // Assuming you have a function to quantize colors
+      // Blend the reflection color with the object's color based on reflectivity
+      final_pixel_color = mix(final_pixel_color, reflection_color, rec.hit_material.reflectivity);
+    } 
+    // if no object is hit, add reflection_texture of the background
+    else {
+      // final_pixel_color += refl_rays_bg[i];
+      // var reflection_color = compute_direct_shading(refl_rays[i], refl_recs[i]);
+      var reflection_color = quantize_color(background_texture, bg_levels);
+      final_pixel_color = mix(final_pixel_color, reflection_color, rec.hit_material.reflectivity);
+    }
   }
   
   return final_pixel_color;
+}
+
+// Helper function to quantize colors for toon shading
+fn quantize_color(color: vec3<f32>, levels: u32) -> vec3<f32> {
+    // Apply quantization to each color channel
+    return vec3<f32>(
+        floor(color.r * f32(levels)) / f32(levels),
+        floor(color.g * f32(levels)) / f32(levels),
+        floor(color.b * f32(levels)) / f32(levels)
+    );
 }
 
 fn trace_ray(ray: Ray) -> HitRecord{
